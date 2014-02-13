@@ -19,4 +19,4 @@ I'm currently working on a patch for `Universe::Physics`, which wasn't maintaine
 - **Electrons**: For the sake of simplicity, electrons now actually rotate around the atoms.
 - **Pi number**: It seems the ratio between a circle diameter and its circumference has attracted a lot of attention during the last two millenniums. For more convenience, it has been set to an exact --rational-- value of `pi= 3.14`.
 
-Any idea on how to improve this before I launch it ?
+Any further suggestions are welcome !
