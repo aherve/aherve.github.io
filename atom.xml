@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
 
-  <title><![CDATA[Category: physics | Aherve's blog]]></title>
-  <link href="http://aherve.github.io/blog/categories/physics/atom.xml" rel="self"/>
+  <title><![CDATA[Aherve's blog]]></title>
+  <link href="http://aherve.github.io/atom.xml" rel="self"/>
   <link href="http://aherve.github.io/"/>
   <updated>2014-02-14T10:28:40+01:00</updated>
   <id>http://aherve.github.io/</id>
@@ -42,6 +42,15 @@
 
 
 <p>Any further suggestions will be welcomed !</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[hello world]]></title>
+    <link href="http://aherve.github.io/blog/2014/02/13/hello-world/"/>
+    <updated>2014-02-13T16:45:43+01:00</updated>
+    <id>http://aherve.github.io/blog/2014/02/13/hello-world</id>
+    <content type="html"><![CDATA[<p>hello, world !</p>
 ]]></content>
   </entry>
   
