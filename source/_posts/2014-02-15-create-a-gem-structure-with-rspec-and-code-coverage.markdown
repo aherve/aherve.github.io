@@ -15,6 +15,7 @@ categories:
 
 This is a step-by-step tutorial for creating a gem structure, along with some unit tests and code coverage.
 
+<!-- more -->
 ##1. Bundle: create the structure
 
 - Create the directories using bundler:
