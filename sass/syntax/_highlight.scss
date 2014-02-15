@@ -286,9 +286,10 @@ figure.code {
   border-right-color: #a5a5a5;
   border-bottom: 0;
   @if $solarized == bootstrap {
-    text-shadow: none;
-    color: #999999;
-    background: #000000;
+    //text-shadow: none;
+    text-shadow: #cbcccc 0 1px 0;
+    color: #474747;
+    background: #aaaaaa image-url("code_bg.png") top repeat-x;
   } @else {
     text-shadow: #cbcccc 0 1px 0;
     color: #474747;
