@@ -109,6 +109,215 @@
       
   <header class="page-header">
     
+      <h1 class="entry-title"><a href="/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/">Create a Gem Structure With Rspec and Code Coverage</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-02-15T21:59:36+01:00" pubdate data-updated="true">Feb 15<span>th</span>, 2014</time>
+        
+         | <a href="/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><h3>tl;dr</h3>
+
+<p>This is a step-by-step tutorial for creating a gem structure, along with some unit tests and code coverage.</p>
+
+<h2>1. Bundle: create the structure</h2>
+
+<ul>
+<li>Create the directories using bundler:</li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ bundle my_fancy_gem
+</span><span class='line'>create  my_fancy_gem/Gemfile
+</span><span class='line'>create  my_fancy_gem/Rakefile
+</span><span class='line'>create  my_fancy_gem/LICENSE.txt
+</span><span class='line'>create  my_fancy_gem/README.md
+</span><span class='line'>create  my_fancy_gem/.gitignore
+</span><span class='line'>create  my_fancy_gem/my_fancy_gem.gemspec
+</span><span class='line'>create  my_fancy_gem/lib/my_fancy_gem.rb
+</span><span class='line'>create  my_fancy_gem/lib/my_fancy_gem/version.rb
+</span><span class='line'>Initializing git repo in &lt;wherever you are&gt;/my_fancy_gem</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>fill the gem description in <code>my_fancy_gem.gemspec</code></li>
+</ul>
+
+
+<h2>2. Configure rspec</h2>
+
+<ul>
+<li>add rspec to the dependencies in <code>my_fancy_gem.gemspec</code>:</li>
+</ul>
+
+
+<figure class='code'><figcaption><span>my_fancy_gem.gemspec</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'>  <span class="n">spec</span><span class="o">.</span><span class="n">add_development_dependency</span> <span class="s2">&quot;rake&quot;</span>
+</span><span class='line'>  <span class="n">spec</span><span class="o">.</span><span class="n">add_development_dependency</span> <span class="s2">&quot;rspec&quot;</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>and make sure you install it:</p>
+
+<pre><code>$ bundle
+</code></pre>
+
+<ul>
+<li>create <code>spec/spec_helper.rb</code> file:</li>
+</ul>
+
+
+<figure class='code'><figcaption><span>spec/spec_helper.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;rspec&#39;</span>
+</span><span class='line'><span class="nb">require</span> <span class="s1">&#39;my_fancy_gem&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>I like it better with colors. In <code>.rspec</code>:</li>
+</ul>
+
+
+<figure class='code'><figcaption><span>.rspec</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">--</span><span class="n">color</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Now let&rsquo;s create some method and test it</h3>
+
+<p>Let&rsquo;s write a hello world method with TDD</p>
+
+<ul>
+<li>in <code>spec/my_fancy_gem_spec.rb</code></li>
+</ul>
+
+
+<figure class='code'><figcaption><span>spec/my_fancy_gem_spec.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;spec_helper&#39;</span>
+</span><span class='line'><span class="n">describe</span> <span class="no">SmartadCollector</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">it</span> <span class="s2">&quot;should greet&quot;</span> <span class="k">do</span>
+</span><span class='line'>    <span class="ss">SmartadCollector</span><span class="p">:</span><span class="ss">:greet</span><span class="o">.</span><span class="n">should</span> <span class="o">==</span> <span class="s2">&quot;Hello, world!&quot;</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>Proudly watch the test failing by running <code>rspec</code></li>
+<li>Now let&rsquo;s write the actual method: <code>lib/my_fancy_gem_spec.rb</code></li>
+</ul>
+
+
+<figure class='code'><figcaption><span>lib/my_fancy_gem.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s2">&quot;my_fancy_gem/version&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">module</span> <span class="nn">MyFancyGem</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">greet</span>
+</span><span class='line'>    <span class="s2">&quot;Hello, world!&quot;</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>and (even more) proudly watch the test pass:</p>
+
+<pre><code>$ rspec #=&gt; 1 example, 0 failures
+</code></pre>
+
+<h2>3. Adding code coverage tools</h2>
+
+<p><a href="https://github.com/colszowka/simplecov">SimpleCov</a> to get code coverage:</p>
+
+<ul>
+<li>add <code>spec.add_development_dependency "simplecov"</code> in <code>my_fancy_gem_spec.gemspec</code>.</li>
+<li><p><code>$ bundle install</code> to install the simple cov gem</p></li>
+<li><p>create a <code>.simplecov</code> file:</p></li>
+</ul>
+
+
+<figure class='code'><figcaption><span>.simplecov</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">SimpleCov</span><span class="o">.</span><span class="n">start</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">add_group</span> <span class="s2">&quot;lib&quot;</span><span class="p">,</span> <span class="s2">&quot;lib&quot;</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>add it to rspec: <code>spec/spec_helper.rb</code>:</li>
+</ul>
+
+
+<figure class='code'><figcaption><span>spec/spec_helper.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;rspec&#39;</span>
+</span><span class='line'><span class="nb">require</span> <span class="s1">&#39;simplecov&#39;</span>
+</span><span class='line'><span class="nb">require</span> <span class="s1">&#39;my_fancy_gem_spec&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Please note that the <code>require 'simplecov'</code> has to be added before <code>require 'my_fancy_gem_spec'</code>.</p>
+
+<p>Now running <code>$ rspec</code> will output a report on code coverage, as well as a <code>coverage</code> directory. You can browse <code>coverage/index.html</code> to view the detailed report.</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  
+    <article>
+      
+  <header class="page-header">
+    
       <h1 class="entry-title"><a href="/blog/2014/02/13/we-should-fix-the-physics-engine/">We Should Fix the Physics Engine</a></h1>
     
     
@@ -207,6 +416,10 @@
     <section class="well">
   <ul id="recent_posts" class="nav nav-list">
     <li class="nav-header">Recent Posts</li>
+    
+      <li class="post">
+        <a href="/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/">create a gem structure with rspec and code coverage</a>
+      </li>
     
       <li class="post">
         <a href="/blog/2014/02/13/we-should-fix-the-physics-engine/">We should fix the physics engine</a>
