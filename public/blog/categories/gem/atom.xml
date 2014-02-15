@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: gem | Aherve's blog]]></title>
+  <link href="http://aherve.github.io/blog/categories/gem/atom.xml" rel="self"/>
+  <link href="http://aherve.github.io/"/>
+  <updated>2014-02-15T22:20:53+01:00</updated>
+  <id>http://aherve.github.io/</id>
+  <author>
+    <name><![CDATA[A. Hervé]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[create a gem structure with rspec and code coverage]]></title>
+    <link href="http://aherve.github.io/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/"/>
+    <updated>2014-02-15T21:59:36+01:00</updated>
+    <id>http://aherve.github.io/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage</id>
+    <content type="html"><![CDATA[<h3>tl;dr</h3>
+
+<p>This is a step-by-step tutorial for creating a gem structure, along with some unit tests and code coverage.</p>
+
+<h2>1. Bundle: create the structure</h2>
+
+<ul>
+<li>Create the directories using bundler:
+<code>
+$ bundle my_fancy_gem
+create  my_fancy_gem/Gemfile
+create  my_fancy_gem/Rakefile
+create  my_fancy_gem/LICENSE.txt
+create  my_fancy_gem/README.md
+create  my_fancy_gem/.gitignore
+create  my_fancy_gem/my_fancy_gem.gemspec
+create  my_fancy_gem/lib/my_fancy_gem.rb
+create  my_fancy_gem/lib/my_fancy_gem/version.rb
+Initializing git repo in &lt;wherever you are&gt;/my_fancy_gem
+</code></li>
+<li>fill the gem description in <code>my_fancy_gem.gemspec</code></li>
+</ul>
+
+
+<h2>2. Configure rspec</h2>
+
+<ul>
+<li><p>add rspec to the dependencies in <code>my_fancy_gem.gemspec</code>:
+<code>ruby my_fancy_gem.gemspec
+...
+spec.add_development_dependency "rake"
+spec.add_development_dependency "rspec"
+end
+</code>
+and make sure you install it:
+  $ bundle</p></li>
+<li><p>create <code>spec/spec_helper.rb</code> file:
+<code>ruby spec/spec_helper.rb
+require 'rspec'
+require 'my_fancy_gem'
+</code></p></li>
+<li><p>I like it better with colors. In <code>.rspec</code>:
+<code>ruby .rspec
+--color
+</code></p></li>
+</ul>
+
+
+<h3>Now let&rsquo;s create some method and test it</h3>
+
+<p>Let&rsquo;s write a hello world method with TDD</p>
+
+<ul>
+<li>in <code>spec/my_fancy_gem_spec.rb</code>
+<code>ruby spec/my_fancy_gem_spec.rb
+require 'spec_helper'
+describe SmartadCollector do
+it "should greet" do
+  SmartadCollector::greet.should == "Hello, world!"
+end
+end
+</code></li>
+<li>Proudly watch the test failing by running <code>rspec</code></li>
+<li>Now let&rsquo;s write the actual method: <code>lib/my_fancy_gem_spec.rb</code>
+```ruby lib/my_fancy_gem.rb
+require &ldquo;my_fancy_gem/version&rdquo;</li>
+</ul>
+
+
+<p>module MyFancyGem
+  def self.greet</p>
+
+<pre><code>"Hello, world!"
+</code></pre>
+
+<p>  end
+end
+```
+and (even more) proudly watch the test pass:</p>
+
+<pre><code>$ rspec #=&gt; 1 example, 0 failures
+</code></pre>
+
+<h2>3. Adding code coverage tools</h2>
+
+<p><a href="https://github.com/colszowka/simplecov">SimpleCov</a> to get code coverage:</p>
+
+<ul>
+<li>add <code>spec.add_development_dependency "simplecov"</code> in <code>my_fancy_gem_spec.gemspec</code>.</li>
+<li><p><code>$ bundle install</code> to install the simple cov gem</p></li>
+<li><p>create a <code>.simplecov</code> file:
+<code>ruby .simplecov
+SimpleCov.start do
+add_group "lib", "lib"
+end
+</code></p></li>
+<li><p>add it to rspec: <code>spec/spec_helper.rb</code>:
+<code>ruby spec/spec_helper.rb
+require 'rspec'
+require 'simplecov'
+require 'my_fancy_gem_spec'
+</code>
+Please note that the <code>require 'simplecov'</code> has to be added before <code>require 'my_fancy_gem_spec'</code>.</p></li>
+</ul>
+
+
+<p>Now running <code>$ rspec</code> will output a report on code coverage, as well as a <code>coverage</code> directory. You can browse <code>coverage/index.html</code> to view the detailed report.</p>
+]]></content>
+  </entry>
+  
+</feed>
