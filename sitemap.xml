@@ -2,28 +2,28 @@
 <urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>
     <url>
         <loc>http://aherve.github.io/blog/2014/02/13/hello-world/</loc>
-        <lastmod>2014-02-15T22:17:24+01:00</lastmod>
+        <lastmod>2014-02-15T22:22:29+01:00</lastmod>
     </url>
     <url>
         <loc>http://aherve.github.io/blog/2014/02/13/we-should-fix-the-physics-engine/</loc>
-        <lastmod>2014-02-15T22:17:24+01:00</lastmod>
+        <lastmod>2014-02-15T22:22:29+01:00</lastmod>
     </url>
     <url>
         <loc>
             http://aherve.github.io/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/
         </loc>
-        <lastmod>2014-02-15T22:20:05+01:00</lastmod>
+        <lastmod>2014-02-15T22:22:52+01:00</lastmod>
     </url>
     <url>
         <loc>http://aherve.github.io/</loc>
-        <lastmod>2014-02-15T22:20:05+01:00</lastmod>
+        <lastmod>2014-02-15T22:22:52+01:00</lastmod>
     </url>
     <url>
         <loc>http://aherve.github.io/blog/archives/</loc>
-        <lastmod>2014-02-15T22:20:05+01:00</lastmod>
+        <lastmod>2014-02-15T22:22:52+01:00</lastmod>
     </url>
     <url>
         <loc>http://aherve.github.io/robots.txt</loc>
-        <lastmod>2014-02-15T21:13:19+01:00</lastmod>
+        <lastmod>2014-02-15T22:22:29+01:00</lastmod>
     </url>
 </urlset>

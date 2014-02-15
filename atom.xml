@@ -4,7 +4,7 @@
   <title><![CDATA[Aherve's blog]]></title>
   <link href="http://aherve.github.io/atom.xml" rel="self"/>
   <link href="http://aherve.github.io/"/>
-  <updated>2014-02-15T22:20:53+01:00</updated>
+  <updated>2014-02-15T22:23:01+01:00</updated>
   <id>http://aherve.github.io/</id>
   <author>
     <name><![CDATA[A. Hervé]]></name>
@@ -21,6 +21,9 @@
     <content type="html"><![CDATA[<h3>tl;dr</h3>
 
 <p>This is a step-by-step tutorial for creating a gem structure, along with some unit tests and code coverage.</p>
+
+<!-- more -->
+
 
 <h2>1. Bundle: create the structure</h2>
 
