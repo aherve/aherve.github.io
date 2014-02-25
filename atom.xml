@@ -4,7 +4,7 @@
   <title><![CDATA[Aurélien Hervé]]></title>
   <link href="http://aherve.github.io/atom.xml" rel="self"/>
   <link href="http://aherve.github.io/"/>
-  <updated>2014-02-25T20:07:57+01:00</updated>
+  <updated>2014-02-25T20:12:00+01:00</updated>
   <id>http://aherve.github.io/</id>
   <author>
     <name><![CDATA[A. Hervé]]></name>
@@ -14,7 +14,7 @@
 
   
   <entry>
-    <title type="html"><![CDATA[create a gem structure with rspec and code coverage]]></title>
+    <title type="html"><![CDATA[How to create a gem structure with rspec and code coverage]]></title>
     <link href="http://aherve.github.io/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/"/>
     <updated>2014-02-15T21:59:36+01:00</updated>
     <id>http://aherve.github.io/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage</id>
