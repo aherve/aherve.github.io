@@ -20,7 +20,7 @@ This is a step-by-step tutorial for creating a gem structure, along with some un
 
 - Create the directories using bundler:
 ```
-$ bundle my_fancy_gem
+$ bundle gem my_fancy_gem
 create  my_fancy_gem/Gemfile
 create  my_fancy_gem/Rakefile
 create  my_fancy_gem/LICENSE.txt
