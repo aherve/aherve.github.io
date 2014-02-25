@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "create a gem structure with rspec and code coverage"
+title: "How to create a gem structure with rspec and code coverage"
 date: 2014-02-15 21:59:36 +0100
 comments: true
 categories: 
