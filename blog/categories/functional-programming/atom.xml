@@ -4,7 +4,7 @@
   <title><![CDATA[Category: functional programming | Aurélien Hervé]]></title>
   <link href="http://aherve.github.io/blog/categories/functional-programming/atom.xml" rel="self"/>
   <link href="http://aherve.github.io/"/>
-  <updated>2014-02-28T00:38:44+01:00</updated>
+  <updated>2014-02-28T00:45:28+01:00</updated>
   <id>http://aherve.github.io/</id>
   <author>
     <name><![CDATA[A. Hervé]]></name>
@@ -365,7 +365,7 @@ p nth_derivator.(3).(square).(3) # => 0 = constant(0)</p>
 p nth_derivator.(1).(logarithm).(3) #=> 0.3333333333430346 ~ 1/3 I can derivate whatever I want !
 ```</p>
 
-<p>Well that&rsquo;s all, hope you enjoyed reading this (at least) as much as I enjoyed writing it. Feel free to drop some comments, suggest anything or correct me if needed :)</p>
+<p>Well that&rsquo;s all, hope you enjoyed reading this (at least) as much as I enjoyed writing it. Feel free to drop some comments, suggest anything, c orrect some code (or my english ) :)</p>
 ]]></content>
   </entry>
   
