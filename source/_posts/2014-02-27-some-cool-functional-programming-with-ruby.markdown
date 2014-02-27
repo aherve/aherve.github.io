@@ -293,5 +293,5 @@ logarithm = -> x { Math.log(x) }
 p nth_derivator.(1).(logarithm).(3) #=> 0.3333333333430346 ~ 1/3 I can derivate whatever I want !
 ```
 
-Well that's all, hope you enjoyed reading this (at least) as much as I enjoyed writing it. Feel free to drop some comments, suggest anything or correct me if needed :) 
+Well that's all, hope you enjoyed reading this (at least) as much as I enjoyed writing it. Feel free to drop some comments, suggest anything, c orrect some code (or my english ) :)
 
