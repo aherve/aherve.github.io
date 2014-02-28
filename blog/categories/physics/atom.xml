@@ -2,10 +2,10 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
 
   <title><![CDATA[Category: physics | Aurélien Hervé]]></title>
-  <link href="http://aherve.github.io/blog/categories/physics/atom.xml" rel="self"/>
-  <link href="http://aherve.github.io/"/>
-  <updated>2014-02-28T10:29:05+01:00</updated>
-  <id>http://aherve.github.io/</id>
+  <link href="http://aurelien-herve.com/blog/categories/physics/atom.xml" rel="self"/>
+  <link href="http://aurelien-herve.com/"/>
+  <updated>2014-02-28T17:23:29+01:00</updated>
+  <id>http://aurelien-herve.com/</id>
   <author>
     <name><![CDATA[A. Hervé]]></name>
     
@@ -15,9 +15,9 @@
   
   <entry>
     <title type="html"><![CDATA[We should fix the physics engine]]></title>
-    <link href="http://aherve.github.io/blog/2014/02/13/we-should-fix-the-physics-engine/"/>
+    <link href="http://aurelien-herve.com/blog/2014/02/13/we-should-fix-the-physics-engine/"/>
     <updated>2014-02-13T16:54:23+01:00</updated>
-    <id>http://aherve.github.io/blog/2014/02/13/we-should-fix-the-physics-engine</id>
+    <id>http://aurelien-herve.com/blog/2014/02/13/we-should-fix-the-physics-engine</id>
     <content type="html"><![CDATA[<p>I think the Universe&rsquo;s laws of physics are now way outdated. Let&rsquo;s suggest a patch for this.</p>
 
 <p><code>Universe::Physics</code> v 2.1.0 release notes</p>

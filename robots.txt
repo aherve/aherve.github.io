@@ -1,4 +1,4 @@
 User-agent: *
 Disallow: 
 
-Sitemap: http://aherve.github.io/sitemap.xml 
+Sitemap: http://aurelien-herve.com/sitemap.xml 

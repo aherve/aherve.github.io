@@ -2,10 +2,10 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
 
   <title><![CDATA[Category: recipie | Aurélien Hervé]]></title>
-  <link href="http://aherve.github.io/blog/categories/recipie/atom.xml" rel="self"/>
-  <link href="http://aherve.github.io/"/>
-  <updated>2014-02-28T10:29:05+01:00</updated>
-  <id>http://aherve.github.io/</id>
+  <link href="http://aurelien-herve.com/blog/categories/recipie/atom.xml" rel="self"/>
+  <link href="http://aurelien-herve.com/"/>
+  <updated>2014-02-28T17:23:29+01:00</updated>
+  <id>http://aurelien-herve.com/</id>
   <author>
     <name><![CDATA[A. Hervé]]></name>
     
@@ -15,9 +15,9 @@
   
   <entry>
     <title type="html"><![CDATA[How to create a gem structure with rspec and code coverage]]></title>
-    <link href="http://aherve.github.io/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/"/>
+    <link href="http://aurelien-herve.com/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/"/>
     <updated>2014-02-15T21:59:36+01:00</updated>
-    <id>http://aherve.github.io/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage</id>
+    <id>http://aurelien-herve.com/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage</id>
     <content type="html"><![CDATA[<h3>tl;dr</h3>
 
 <p>This is a step-by-step tutorial for creating a gem structure, along with some unit tests and code coverage.</p>

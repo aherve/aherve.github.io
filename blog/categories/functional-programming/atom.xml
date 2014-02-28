@@ -2,10 +2,10 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
 
   <title><![CDATA[Category: functional programming | Aurélien Hervé]]></title>
-  <link href="http://aherve.github.io/blog/categories/functional-programming/atom.xml" rel="self"/>
-  <link href="http://aherve.github.io/"/>
-  <updated>2014-02-28T10:29:05+01:00</updated>
-  <id>http://aherve.github.io/</id>
+  <link href="http://aurelien-herve.com/blog/categories/functional-programming/atom.xml" rel="self"/>
+  <link href="http://aurelien-herve.com/"/>
+  <updated>2014-02-28T17:23:29+01:00</updated>
+  <id>http://aurelien-herve.com/</id>
   <author>
     <name><![CDATA[A. Hervé]]></name>
     
@@ -15,9 +15,9 @@
   
   <entry>
     <title type="html"><![CDATA[Having fun with functional programming in ruby]]></title>
-    <link href="http://aherve.github.io/blog/2014/02/27/some-cool-functional-programming-with-ruby/"/>
+    <link href="http://aurelien-herve.com/blog/2014/02/27/some-cool-functional-programming-with-ruby/"/>
     <updated>2014-02-27T21:51:46+01:00</updated>
-    <id>http://aherve.github.io/blog/2014/02/27/some-cool-functional-programming-with-ruby</id>
+    <id>http://aurelien-herve.com/blog/2014/02/27/some-cool-functional-programming-with-ruby</id>
     <content type="html"><![CDATA[<p>Today we&rsquo;re going to play around with functional programming. Yay !</p>
 
 <ul>

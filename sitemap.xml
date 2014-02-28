@@ -1,59 +1,59 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>
     <url>
-        <loc>http://aherve.github.io/blog/2014/02/13/hello-world/</loc>
+        <loc>http://aurelien-herve.com/blog/2014/02/13/hello-world/</loc>
         <lastmod>2014-02-25T15:03:20+01:00</lastmod>
     </url>
     <url>
-        <loc>http://aherve.github.io/blog/2014/02/13/we-should-fix-the-physics-engine/</loc>
+        <loc>http://aurelien-herve.com/blog/2014/02/13/we-should-fix-the-physics-engine/</loc>
         <lastmod>2014-02-25T15:03:20+01:00</lastmod>
     </url>
     <url>
         <loc>
-            http://aherve.github.io/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/
+            http://aurelien-herve.com/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/
         </loc>
         <lastmod>2014-02-27T11:19:47+01:00</lastmod>
     </url>
     <url>
         <loc>
-            http://aherve.github.io/blog/2014/02/27/some-cool-functional-programming-with-ruby/
+            http://aurelien-herve.com/blog/2014/02/27/some-cool-functional-programming-with-ruby/
         </loc>
         <lastmod>2014-02-28T10:28:12+01:00</lastmod>
     </url>
     <url>
-        <loc>http://aherve.github.io/</loc>
+        <loc>http://aurelien-herve.com/</loc>
         <lastmod>2014-02-28T10:28:12+01:00</lastmod>
     </url>
     <url>
-        <loc>http://aherve.github.io/blog/archives/</loc>
+        <loc>http://aurelien-herve.com/blog/archives/</loc>
         <lastmod>2014-02-28T10:28:12+01:00</lastmod>
     </url>
     <url>
-        <loc>http://aherve.github.io/publications/aiaa-2011/</loc>
+        <loc>http://aurelien-herve.com/publications/aiaa-2011/</loc>
         <lastmod>2014-02-27T11:19:47+01:00</lastmod>
     </url>
     <url>
-        <loc>http://aherve.github.io/publications/jfm/</loc>
+        <loc>http://aurelien-herve.com/publications/jfm/</loc>
         <lastmod>2014-02-27T11:19:47+01:00</lastmod>
     </url>
     <url>
-        <loc>http://aherve.github.io/publications/</loc>
+        <loc>http://aurelien-herve.com/publications/</loc>
         <lastmod>2014-02-27T11:19:47+01:00</lastmod>
     </url>
     <url>
-        <loc>http://aherve.github.io/publications/efmc9/</loc>
+        <loc>http://aurelien-herve.com/publications/efmc9/</loc>
         <lastmod>2014-02-27T11:19:47+01:00</lastmod>
     </url>
     <url>
-        <loc>http://aherve.github.io/publications/phd/</loc>
+        <loc>http://aurelien-herve.com/publications/phd/</loc>
         <lastmod>2014-02-27T11:19:47+01:00</lastmod>
     </url>
     <url>
-        <loc>http://aherve.github.io/publications/cfm-2011/</loc>
+        <loc>http://aurelien-herve.com/publications/cfm-2011/</loc>
         <lastmod>2014-02-27T11:19:47+01:00</lastmod>
     </url>
     <url>
-        <loc>http://aherve.github.io/robots.txt</loc>
+        <loc>http://aurelien-herve.com/robots.txt</loc>
         <lastmod>2014-02-25T15:03:20+01:00</lastmod>
     </url>
 </urlset>

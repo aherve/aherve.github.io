@@ -2,10 +2,10 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
 
   <title><![CDATA[Aurélien Hervé]]></title>
-  <link href="http://aherve.github.io/atom.xml" rel="self"/>
-  <link href="http://aherve.github.io/"/>
-  <updated>2014-02-28T10:29:05+01:00</updated>
-  <id>http://aherve.github.io/</id>
+  <link href="http://aurelien-herve.com/atom.xml" rel="self"/>
+  <link href="http://aurelien-herve.com/"/>
+  <updated>2014-02-28T17:23:29+01:00</updated>
+  <id>http://aurelien-herve.com/</id>
   <author>
     <name><![CDATA[A. Hervé]]></name>
     
@@ -15,9 +15,9 @@
   
   <entry>
     <title type="html"><![CDATA[Having fun with functional programming in ruby]]></title>
-    <link href="http://aherve.github.io/blog/2014/02/27/some-cool-functional-programming-with-ruby/"/>
+    <link href="http://aurelien-herve.com/blog/2014/02/27/some-cool-functional-programming-with-ruby/"/>
     <updated>2014-02-27T21:51:46+01:00</updated>
-    <id>http://aherve.github.io/blog/2014/02/27/some-cool-functional-programming-with-ruby</id>
+    <id>http://aurelien-herve.com/blog/2014/02/27/some-cool-functional-programming-with-ruby</id>
     <content type="html"><![CDATA[<p>Today we&rsquo;re going to play around with functional programming. Yay !</p>
 
 <ul>
@@ -102,7 +102,7 @@ Rather than describing how to subtract two values, we want to define what <code>
 <p>Alright. Let&rsquo;s build a derivative operator. That is, a function that takes a function as an argument, and return another function: its derivate.</p>
 
 <p>The derivative of a function at some point <em>x</em> can be obtained by evaluating
-<img src="http://aherve.github.io/images/derivative.gif" alt="derivative" />, <em>i.e.</em> the limit when epsilon &ndash;> 0 of a derivative scheme based on f at point x.</p>
+<img src="http://aurelien-herve.com/images/derivative.gif" alt="derivative" />, <em>i.e.</em> the limit when epsilon &ndash;> 0 of a derivative scheme based on f at point x.</p>
 
 <p>Here&rsquo;s the plan :</p>
 
@@ -363,7 +363,7 @@ Rather than describing how to subtract two values, we want to define what <code>
 
 <h3>Summary</h3>
 
-<p>Here&rsquo;s a full code of what we implemented <a href="http://aherve.github.io/assets/aherves_blog_ruby_functional.rb">(download it)</a></p>
+<p>Here&rsquo;s a full code of what we implemented <a href="http://aurelien-herve.com/assets/aherves_blog_ruby_functional.rb">(download it)</a></p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -486,9 +486,9 @@ Rather than describing how to subtract two values, we want to define what <code>
   
   <entry>
     <title type="html"><![CDATA[How to create a gem structure with rspec and code coverage]]></title>
-    <link href="http://aherve.github.io/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/"/>
+    <link href="http://aurelien-herve.com/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/"/>
     <updated>2014-02-15T21:59:36+01:00</updated>
-    <id>http://aherve.github.io/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage</id>
+    <id>http://aurelien-herve.com/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage</id>
     <content type="html"><![CDATA[<h3>tl;dr</h3>
 
 <p>This is a step-by-step tutorial for creating a gem structure, along with some unit tests and code coverage.</p>
@@ -669,9 +669,9 @@ Rather than describing how to subtract two values, we want to define what <code>
   
   <entry>
     <title type="html"><![CDATA[We should fix the physics engine]]></title>
-    <link href="http://aherve.github.io/blog/2014/02/13/we-should-fix-the-physics-engine/"/>
+    <link href="http://aurelien-herve.com/blog/2014/02/13/we-should-fix-the-physics-engine/"/>
     <updated>2014-02-13T16:54:23+01:00</updated>
-    <id>http://aherve.github.io/blog/2014/02/13/we-should-fix-the-physics-engine</id>
+    <id>http://aurelien-herve.com/blog/2014/02/13/we-should-fix-the-physics-engine</id>
     <content type="html"><![CDATA[<p>I think the Universe&rsquo;s laws of physics are now way outdated. Let&rsquo;s suggest a patch for this.</p>
 
 <p><code>Universe::Physics</code> v 2.1.0 release notes</p>
@@ -701,9 +701,9 @@ Rather than describing how to subtract two values, we want to define what <code>
   
   <entry>
     <title type="html"><![CDATA[hello world]]></title>
-    <link href="http://aherve.github.io/blog/2014/02/13/hello-world/"/>
+    <link href="http://aurelien-herve.com/blog/2014/02/13/hello-world/"/>
     <updated>2014-02-13T16:45:43+01:00</updated>
-    <id>http://aherve.github.io/blog/2014/02/13/hello-world</id>
+    <id>http://aurelien-herve.com/blog/2014/02/13/hello-world</id>
     <content type="html"><![CDATA[<p>hello, world !</p>
 ]]></content>
   </entry>
