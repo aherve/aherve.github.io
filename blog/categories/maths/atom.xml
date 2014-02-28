@@ -4,7 +4,7 @@
   <title><![CDATA[Category: maths | Aurélien Hervé]]></title>
   <link href="http://aherve.github.io/blog/categories/maths/atom.xml" rel="self"/>
   <link href="http://aherve.github.io/"/>
-  <updated>2014-02-28T10:24:09+01:00</updated>
+  <updated>2014-02-28T10:29:05+01:00</updated>
   <id>http://aherve.github.io/</id>
   <author>
     <name><![CDATA[A. Hervé]]></name>
@@ -111,7 +111,7 @@ my_fancy_func.(3) #=&gt; 5 = 3*3 - ( 3 + 1)
 derivative = &ndash;> f { # we take a function as argument
   &ndash;> x { # the function takes a real x as argument</p>
 
-<pre><code>( f.(x+1e-3) - f.(x-1e-3) ) / ( 2e-5 ) # apply the scheme
+<pre><code>( f.(x+1e-3) - f.(x-1e-3) ) / ( 2e-3 ) # apply the scheme
 </code></pre>
 
 <p>  }
