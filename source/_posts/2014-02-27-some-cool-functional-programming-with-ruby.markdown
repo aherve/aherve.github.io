@@ -116,7 +116,7 @@ Let's go one order higher and define the _nth derivative operator_
 
 Since we can derivate a function, and we want to do it n times, what we miss is simply a `n-times combinator`. For example, `n_times.(f).(2)` should return `x -> f(f(x))` regardless of what `f` and `x` are.
 
-What about we do it recursively ? 
+Shall we do it recursively ? 
 ```ruby
 n_times = -> n,f {
   n == 1 ? f : -> x { f.(n_times.(n-1,f).(x))}
@@ -159,7 +159,7 @@ Yet.
 
 ### Level 3 : More functional, and a true limit operator
 
-Now that we have a better feel for it (have we?), let's refactor our derivative operator so that is is _actually_ defined as a limit. And hey, let's parametrize the precision that we want since we're at it.
+Now that we have a better feel for it (have we?), let's refactor our derivative operator so that it is _actually_ defined as a limit. And hey, let's parametrize the precision that we want since we're at it.
 
 First, let's write a bunch of tools that are going to be useful: 
 ```ruby
@@ -181,7 +181,7 @@ Now the limit function. Here we are going to define a function, that actually im
 
 - variables : a function `f`, a starting epsilon `eps`, and a threshold `tres`
 - 1. Evaluate y = ||f(x + epsilon/2) - f(x + epsilon) ||
-- 2. if y < tres, then f(x+epsilon) we are converged, and lowering epsilon wouldn't change the result much. Return f(x+epsilon).
+- 2. if y < tres, then we are converged, and lowering epsilon wouldn't change the result much. Return f(x+epsilon).
 - 3. else, reduce epsilon and try again (i.e. go to 1.)
 
 Obviously, this algorithm is quite simple, and will only work when dealing with smooth, continuous, and gracious functions.
@@ -209,7 +209,7 @@ lim.(square,1,1e-16).(2) #=> 4.0 How nice !
 Now we're getting close ! Let's refactor our derivative operator in a more appropriate way and get our final derivative operator: 
 
 ```ruby
-# derivative_sche.(f).(x) will be a function of epsilon
+# derivative_scheme.(f).(x) shall be a function of epsilon
 derivative_sheme = -> f {
   -> x { 
     -> eps {
