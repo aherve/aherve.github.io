@@ -2,58 +2,58 @@
 <urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>
     <url>
         <loc>http://aherve.github.io/blog/2014/02/13/hello-world/</loc>
-        <lastmod>2014-02-25T18:12:47+01:00</lastmod>
+        <lastmod>2014-02-25T15:03:20+01:00</lastmod>
     </url>
     <url>
         <loc>http://aherve.github.io/blog/2014/02/13/we-should-fix-the-physics-engine/</loc>
-        <lastmod>2014-02-25T18:12:47+01:00</lastmod>
+        <lastmod>2014-02-25T15:03:20+01:00</lastmod>
     </url>
     <url>
         <loc>
             http://aherve.github.io/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/
         </loc>
-        <lastmod>2014-02-25T20:11:59+01:00</lastmod>
+        <lastmod>2014-02-27T11:19:47+01:00</lastmod>
     </url>
     <url>
         <loc>
             http://aherve.github.io/blog/2014/02/27/some-cool-functional-programming-with-ruby/
         </loc>
-        <lastmod>2014-02-28T00:59:56+01:00</lastmod>
+        <lastmod>2014-02-28T09:23:40+01:00</lastmod>
     </url>
     <url>
         <loc>http://aherve.github.io/</loc>
-        <lastmod>2014-02-28T00:59:56+01:00</lastmod>
-    </url>
-    <url>
-        <loc>http://aherve.github.io/publications/aiaa-2011/</loc>
-        <lastmod>2014-02-25T18:32:16+01:00</lastmod>
-    </url>
-    <url>
-        <loc>http://aherve.github.io/publications/</loc>
-        <lastmod>2014-02-25T19:10:33+01:00</lastmod>
-    </url>
-    <url>
-        <loc>http://aherve.github.io/publications/cfm-2011/</loc>
-        <lastmod>2014-02-25T18:33:04+01:00</lastmod>
-    </url>
-    <url>
-        <loc>http://aherve.github.io/publications/efmc9/</loc>
-        <lastmod>2014-02-25T18:54:06+01:00</lastmod>
-    </url>
-    <url>
-        <loc>http://aherve.github.io/publications/phd/</loc>
-        <lastmod>2014-02-25T19:03:12+01:00</lastmod>
-    </url>
-    <url>
-        <loc>http://aherve.github.io/publications/jfm/</loc>
-        <lastmod>2014-02-25T18:46:27+01:00</lastmod>
+        <lastmod>2014-02-28T09:23:40+01:00</lastmod>
     </url>
     <url>
         <loc>http://aherve.github.io/blog/archives/</loc>
-        <lastmod>2014-02-28T00:59:56+01:00</lastmod>
+        <lastmod>2014-02-28T09:23:40+01:00</lastmod>
+    </url>
+    <url>
+        <loc>http://aherve.github.io/publications/aiaa-2011/</loc>
+        <lastmod>2014-02-27T11:19:47+01:00</lastmod>
+    </url>
+    <url>
+        <loc>http://aherve.github.io/publications/jfm/</loc>
+        <lastmod>2014-02-27T11:19:47+01:00</lastmod>
+    </url>
+    <url>
+        <loc>http://aherve.github.io/publications/</loc>
+        <lastmod>2014-02-27T11:19:47+01:00</lastmod>
+    </url>
+    <url>
+        <loc>http://aherve.github.io/publications/efmc9/</loc>
+        <lastmod>2014-02-27T11:19:47+01:00</lastmod>
+    </url>
+    <url>
+        <loc>http://aherve.github.io/publications/phd/</loc>
+        <lastmod>2014-02-27T11:19:47+01:00</lastmod>
+    </url>
+    <url>
+        <loc>http://aherve.github.io/publications/cfm-2011/</loc>
+        <lastmod>2014-02-27T11:19:47+01:00</lastmod>
     </url>
     <url>
         <loc>http://aherve.github.io/robots.txt</loc>
-        <lastmod>2014-02-25T18:12:47+01:00</lastmod>
+        <lastmod>2014-02-25T15:03:20+01:00</lastmod>
     </url>
 </urlset>
