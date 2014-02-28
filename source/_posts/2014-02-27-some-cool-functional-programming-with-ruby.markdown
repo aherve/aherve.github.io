@@ -87,7 +87,7 @@ Once we're more comfortable with the concepts, we'll get rid of this assumption 
 ```ruby
 derivative = -> f { # we take a function as argument
   -> x { # the function takes a real x as argument
-    ( f.(x+1e-3) - f.(x-1e-3) ) / ( 2e-5 ) # apply the scheme
+    ( f.(x+1e-3) - f.(x-1e-3) ) / ( 2e-3 ) # apply the scheme
   }
 }
 
