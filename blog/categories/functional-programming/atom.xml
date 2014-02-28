@@ -4,7 +4,7 @@
   <title><![CDATA[Category: functional programming | Aurélien Hervé]]></title>
   <link href="http://aherve.github.io/blog/categories/functional-programming/atom.xml" rel="self"/>
   <link href="http://aherve.github.io/"/>
-  <updated>2014-02-28T00:45:28+01:00</updated>
+  <updated>2014-02-28T01:00:19+01:00</updated>
   <id>http://aherve.github.io/</id>
   <author>
     <name><![CDATA[A. Hervé]]></name>
@@ -144,7 +144,7 @@ second_derivative_of_square.(3) #=&gt; 2.000000000279556
 
 <p>Since we can derivate a function, and we want to do it n times, what we miss is simply a <code>n-times combinator</code>. For example, <code>n_times.(f).(2)</code> should return <code>x -&gt; f(f(x))</code> regardless of what <code>f</code> and <code>x</code> are.</p>
 
-<p>What about we do it recursively ?
+<p>Shall we do it recursively ?
 <code>ruby
 n_times = -&gt; n,f {
   n == 1 ? f : -&gt; x { f.(n_times.(n-1,f).(x))}
@@ -190,7 +190,7 @@ p third_derivative_of_square.(3) # => 0.0
 
 <h3>Level 3 : More functional, and a true limit operator</h3>
 
-<p>Now that we have a better feel for it (have we?), let&rsquo;s refactor our derivative operator so that is is <em>actually</em> defined as a limit. And hey, let&rsquo;s parametrize the precision that we want since we&rsquo;re at it.</p>
+<p>Now that we have a better feel for it (have we?), let&rsquo;s refactor our derivative operator so that it is <em>actually</em> defined as a limit. And hey, let&rsquo;s parametrize the precision that we want since we&rsquo;re at it.</p>
 
 <p>First, let&rsquo;s write a bunch of tools that are going to be useful:
 ```ruby
@@ -219,7 +219,7 @@ min_eps  = &ndash;> eps { &ndash;> f { &ndash;> x { f.(x-eps) } } }</p>
 </ol>
 </li>
 <li><ol>
-<li>if y &lt; tres, then f(x+epsilon) we are converged, and lowering epsilon wouldn&rsquo;t change the result much. Return f(x+epsilon).</li>
+<li>if y &lt; tres, then we are converged, and lowering epsilon wouldn&rsquo;t change the result much. Return f(x+epsilon).</li>
 </ol>
 </li>
 <li><ol>
@@ -259,7 +259,7 @@ lim.(square,1,1e-16).(2) #=> 4.0 How nice !
 
 <p>```ruby</p>
 
-<h1>derivative_sche.(f).(x) will be a function of epsilon</h1>
+<h1>derivative_scheme.(f).(x) shall be a function of epsilon</h1>
 
 <p>derivative_sheme = &ndash;> f {
   &ndash;> x {</p>

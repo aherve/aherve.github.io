@@ -285,7 +285,7 @@ Rather than describing how to subtract two values, we want to define what <code>
 
 <p>Since we can derivate a function, and we want to do it n times, what we miss is simply a <code>n-times combinator</code>. For example, <code>n_times.(f).(2)</code> should return <code>x -&gt; f(f(x))</code> regardless of what <code>f</code> and <code>x</code> are.</p>
 
-<p>What about we do it recursively ?</p>
+<p>Shall we do it recursively ?</p>
 
 <figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
 <span class='line-number'>2</span>
@@ -347,7 +347,7 @@ Rather than describing how to subtract two values, we want to define what <code>
 
 <h3>Level 3 : More functional, and a true limit operator</h3>
 
-<p>Now that we have a better feel for it (have we?), let&rsquo;s refactor our derivative operator so that is is <em>actually</em> defined as a limit. And hey, let&rsquo;s parametrize the precision that we want since we&rsquo;re at it.</p>
+<p>Now that we have a better feel for it (have we?), let&rsquo;s refactor our derivative operator so that it is <em>actually</em> defined as a limit. And hey, let&rsquo;s parametrize the precision that we want since we&rsquo;re at it.</p>
 
 <p>First, let&rsquo;s write a bunch of tools that are going to be useful:</p>
 
@@ -387,7 +387,7 @@ Rather than describing how to subtract two values, we want to define what <code>
 </ol>
 </li>
 <li><ol>
-<li>if y &lt; tres, then f(x+epsilon) we are converged, and lowering epsilon wouldn&rsquo;t change the result much. Return f(x+epsilon).</li>
+<li>if y &lt; tres, then we are converged, and lowering epsilon wouldn&rsquo;t change the result much. Return f(x+epsilon).</li>
 </ol>
 </li>
 <li><ol>
@@ -457,7 +457,7 @@ Rather than describing how to subtract two values, we want to define what <code>
 <span class='line-number'>17</span>
 <span class='line-number'>18</span>
 <span class='line-number'>19</span>
-</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># derivative_sche.(f).(x) will be a function of epsilon</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># derivative_scheme.(f).(x) shall be a function of epsilon</span>
 </span><span class='line'><span class="n">derivative_sheme</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span> <span class="p">{</span>
 </span><span class='line'>  <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span>
 </span><span class='line'>    <span class="o">-&gt;</span> <span class="n">eps</span> <span class="p">{</span>
