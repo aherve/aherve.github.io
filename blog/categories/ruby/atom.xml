@@ -4,7 +4,7 @@
   <title><![CDATA[Category: ruby | Aurélien Hervé]]></title>
   <link href="http://aurelien-herve.com/blog/categories/ruby/atom.xml" rel="self"/>
   <link href="http://aurelien-herve.com/"/>
-  <updated>2014-02-28T17:23:29+01:00</updated>
+  <updated>2014-03-06T17:14:21+01:00</updated>
   <id>http://aurelien-herve.com/</id>
   <author>
     <name><![CDATA[A. Hervé]]></name>
@@ -191,6 +191,8 @@ p third_derivative_of_square.(3) # => 0.0
 <h3>Level 3 : More functional, and a true limit operator</h3>
 
 <p>Now that we have a better feel for it (have we?), let&rsquo;s refactor our derivative operator so that it is <em>actually</em> defined as a limit. And hey, let&rsquo;s parametrize the precision that we want since we&rsquo;re at it.</p>
+
+<p><img class="right" src="/images/party_over.gif" title="" ></p>
 
 <p>First, let&rsquo;s write a bunch of tools that are going to be useful:
 ```ruby
