@@ -159,7 +159,10 @@ Yet.
 
 ### Level 3 : More functional, and a true limit operator
 
+
 Now that we have a better feel for it (have we?), let's refactor our derivative operator so that it is _actually_ defined as a limit. And hey, let's parametrize the precision that we want since we're at it.
+
+{% img right /images/party_over.gif  %}
 
 First, let's write a bunch of tools that are going to be useful: 
 ```ruby
