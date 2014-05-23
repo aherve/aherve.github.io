@@ -87,7 +87,7 @@ Once we're more comfortable with the concepts, we'll get rid of this assumption 
 ```ruby
 derivative = -> f { # we take a function as argument
   -> x { # the function takes a real x as argument
-    ( f.(x+1e-3) - f.(x-1e-3) ) / ( 2e-5 ) # apply the scheme
+    ( f.(x+1e-3) - f.(x-1e-3) ) / ( 2e-3 ) # apply the scheme
   }
 }
 
@@ -159,7 +159,10 @@ Yet.
 
 ### Level 3 : More functional, and a true limit operator
 
+
 Now that we have a better feel for it (have we?), let's refactor our derivative operator so that it is _actually_ defined as a limit. And hey, let's parametrize the precision that we want since we're at it.
+
+{% img right /images/party_over.gif  %}
 
 First, let's write a bunch of tools that are going to be useful: 
 ```ruby
