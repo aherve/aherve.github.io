@@ -5,7 +5,7 @@
 <!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
 <head>
   <meta charset="utf-8">
-  <title>We should fix the physics engine - Aurélien Hervé</title>
+  <title>how to migrate your django users to a new rails application - Aurélien Hervé</title>
   <meta name="author" content="A. Hervé">
 
   
@@ -18,7 +18,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   
-  <link rel="canonical" href="http://aurelien-herve.com/blog/2014/02/13/we-should-fix-the-physics-engine">
+  <link rel="canonical" href="http://aurelien-herve.com/blog/2014/05/23/how-to-migrate-your-django-users-to-a-new-rails-application">
   <link href="/favicon.png" rel="icon">
   <link href="/stylesheets/bootstrap/bootstrap.css" media="screen, projection" rel="stylesheet" type="text/css">
   <link href="/stylesheets/bootstrap/responsive.css" media="screen, projection" rel="stylesheet" type="text/css">
@@ -111,7 +111,7 @@
   
   <header class="page-header">
     
-      <h1 class="entry-title">We Should Fix the Physics Engine</h1>
+      <h1 class="entry-title">How to Migrate Your Django Users to a New Rails Application</h1>
     
     
       <p class="meta">
@@ -127,7 +127,7 @@
   
 
 
-<time datetime="2014-02-13T16:54:23+01:00" pubdate data-updated="true">Feb 13<span>th</span>, 2014</time>
+<time datetime="2014-05-23T10:59:28+02:00" pubdate data-updated="true">May 23<span>rd</span>, 2014</time>
         
          | <a href="#disqus_thread">Comments</a>
         
@@ -136,30 +136,80 @@
   </header>
 
 
-<div class="entry-content"><p>I think the Universe&rsquo;s laws of physics are now way outdated. Let&rsquo;s suggest a patch for this.</p>
-
-<p><code>Universe::Physics</code> v 2.1.0 release notes</p>
-
-<ul>
-<li><strong>Quantum tunnel glitch</strong> : fixed a bug that randomly caused particles to go through well potentials although they lacked the energy to do it.</li>
-<li><strong>High velocity engine improved</strong> : heavy computations at high speed caused local space-time to bend. The engine is now better and the so-called relativistic effects are now minimized.</li>
-<li><strong>Improved data structure (Heisenberg&rsquo;s bug)</strong>: Variables are stored with more efficiency. It is now possible to know both where a particle is, and at what speed it travels.</li>
-</ul>
-
+<div class="entry-content"><p>I recently had to migrate a users database from a django app to a brand new rails app. Is it possible to do that without having to request all our users to change their passwords ?</p>
 
 <!-- more -->
 
 
-<ul>
-<li><strong>Entropy leak</strong>: Some memory leaks that caused entropy to constantly grow without limit have been fixed.</li>
-<li><strong>Teleportation</strong>: Owing to some pointer error, changing the spin of some particle would instantly affect its twin particle in some setups. This is no longer the case.</li>
-<li><strong>Planck&rsquo;s constant</strong>: A better meshing takes place, and the Planck&rsquo;s constant has been drastically reduced so the universe seems more &ldquo;continuous&rdquo;.</li>
-<li><strong>Electrons</strong>: For the sake of simplicity, electrons now actually rotate around the atoms.</li>
-<li><strong>Pi number</strong>: It seems the ratio between a circle diameter and its circumference has attracted a lot of attention during the last two millenniums. For more convenience, it has been set to an exact &mdash;rational&mdash; value of <code>pi= 3.14</code>.</li>
-</ul>
+<p>As you probably already know, plain-text passwords are not, and should <strong>never</strong> be stored in your database. When a user sign up, his/her password is <a href="http://en.wikipedia.org/wiki/Cryptographic_hash_function">hashed</a> before the resulting hash is saved to the database.
+When signin in, the user given password is hashed again, so both hashes (one is stored, the other is provided during the login process) can be checked against each other.</p>
+
+<p>If you&rsquo;re working with rails then you probably know about <a href="https://github.com/plataformatec/devise">Devise</a>: an awesome authentication solution for rails.</p>
+
+<p>Both django and rails/devise properly hash the users passwords. However the process is not the same, and a <em>django encrypted</em> password will not be recognized by the Devise engine as it is.</p>
+
+<h3>The pbkdf2-password-hasher gem</h3>
+
+<p>The app I had to deal with uses <a href="http://en.wikipedia.org/wiki/PBKDF2">pbkdf2</a> encryption algorithm (I&rsquo;m guessing it is a django standard but I have honestly no idea wether it is or not). The idea is then to teach devise how to check such an encrypted password.</p>
+
+<p>I had some trouble to find something satisfying, so I wrote a gem : <a href="https://github.com/aherve/pbkdf2-password-hasher">pbkdf2-password-hasher</a> to solve this issue. Basically, it implements in ruby the pbkdf2 encryption process, so we can easily check a password against a hashed string:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># hashed string from django app</span>
+</span><span class='line'><span class="n">hsh</span> <span class="o">=</span><span class="s1">&#39;pbkdf2_sha256$12000$PEnXGf9dviXF$2soDhu1WB8NSbFDm0w6NEe6OvslVXtiyf4VMiiy9rH0=&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># with right password:</span>
+</span><span class='line'><span class="no">Pbkdf2PasswordHasher</span><span class="o">.</span><span class="n">check_password</span><span class="p">(</span><span class="s1">&#39;bite&#39;</span><span class="p">,</span><span class="n">hsh</span><span class="p">)</span> <span class="c1">#=&gt; true</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">#with wrong password:</span>
+</span><span class='line'><span class="no">Pbkdf2PasswordHasher</span><span class="o">.</span><span class="n">check_password</span><span class="p">(</span><span class="s1">&#39;bitten&#39;</span><span class="p">,</span><span class="n">hsh</span><span class="p">)</span> <span class="c1">#=&gt; false</span>
+</span></code></pre></td></tr></table></div></figure>
 
 
-<p>Any further suggestions will be welcomed !</p>
+<h3>Rasils/Devise integration</h3>
+
+<p>To use this gem in your rails application, simply call it from your Gemfile:</p>
+
+<figure class='code'><figcaption><span>Gemfile</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">gem</span> <span class="n">pbkdf2_password_hasher</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>and run <code>bundle install</code>. Now that the gem is installed, we simply need to tell devise how to use it. To do this, let&rsquo;s override the <code>valid_password?</code> method on our model.</p>
+
+<p>Let&rsquo;s say you created a <code>User</code> model, then simply add</p>
+
+<figure class='code'><figcaption><span>app/models/user.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">valid_password?</span><span class="p">(</span><span class="n">pwd</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">begin</span>
+</span><span class='line'>    <span class="k">super</span><span class="p">(</span><span class="n">pwd</span><span class="p">)</span> <span class="c1"># try the standard way</span>
+</span><span class='line'>  <span class="k">rescue</span>
+</span><span class='line'>    <span class="no">Pbkdf2PasswordHasher</span><span class="o">.</span><span class="n">check_password</span><span class="p">(</span><span class="n">pwd</span><span class="p">,</span><span class="nb">self</span><span class="o">.</span><span class="n">encrypted_password</span><span class="p">)</span> <span class="c1"># if failed, then try the django&#39;s way</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>to your model&rsquo;s definition.</p>
+
+<p>And <em>voilà</em> ! Old users can login using their old passwords, whereas new users will still be able to create new accounts, that will be dealt with in the usual devise way.</p>
+
+<p>Isn&rsquo;t that nice ?</p>
+
+<p>Aurélien</p>
 </div>
 
 
@@ -182,12 +232,12 @@
   
 
 
-<time datetime="2014-02-13T16:54:23+01:00" pubdate data-updated="true">Feb 13<span>th</span>, 2014</time>
+<time datetime="2014-05-23T10:59:28+02:00" pubdate data-updated="true">May 23<span>rd</span>, 2014</time>
       
 
 <span class="categories">
   
-    <a class='category' href='/blog/categories/physics/'>physics</a>
+    <a class='category' href='/blog/categories/devise/'>devise</a>, <a class='category' href='/blog/categories/django/'>django</a>, <a class='category' href='/blog/categories/rails/'>rails</a>, <a class='category' href='/blog/categories/security/'>security</a>
   
 </span>
 
@@ -196,7 +246,7 @@
     
       <div class="sharing">
   
-  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://aurelien-herve.com/blog/2014/02/13/we-should-fix-the-physics-engine/" data-via="aurel_herve" data-counturl="http://aurelien-herve.com/blog/2014/02/13/we-should-fix-the-physics-engine/" >Tweet</a>
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://aurelien-herve.com/blog/2014/05/23/how-to-migrate-your-django-users-to-a-new-rails-application/" data-via="aurel_herve" data-counturl="http://aurelien-herve.com/blog/2014/05/23/how-to-migrate-your-django-users-to-a-new-rails-application/" >Tweet</a>
   
   
   
@@ -215,14 +265,10 @@
     <ul class="pager">
       
       <li class="previous"><a class="basic-alignment left"
-        href="/blog/2014/02/13/hello-world/" title="Previous Post:
-        hello world">&laquo; hello world</a></li>
+        href="/blog/2014/02/27/some-cool-functional-programming-with-ruby/" title="Previous Post:
+        Having fun with functional programming in ruby">&laquo; Having fun with functional programming in ruby</a></li>
       
       <li><a href="/blog/archives">Blog Archives</a></li>
-      
-      <li class="next"><a class="basic-alignment right" href="/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/"
-        title="Next Post: How to create a gem structure with rspec and code coverage">How to create a gem structure with rspec and code coverage
-        &raquo;</a></li>
       
     </ul>
   </footer>
@@ -286,8 +332,8 @@
       
         
         // var disqus_developer = 1;
-        var disqus_identifier = 'http://aurelien-herve.com/blog/2014/02/13/we-should-fix-the-physics-engine/';
-        var disqus_url = 'http://aurelien-herve.com/blog/2014/02/13/we-should-fix-the-physics-engine/';
+        var disqus_identifier = 'http://aurelien-herve.com/blog/2014/05/23/how-to-migrate-your-django-users-to-a-new-rails-application/';
+        var disqus_url = 'http://aurelien-herve.com/blog/2014/05/23/how-to-migrate-your-django-users-to-a-new-rails-application/';
         var disqus_script = 'embed.js';
       
     (function () {
