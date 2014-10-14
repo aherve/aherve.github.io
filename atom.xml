@@ -4,7 +4,7 @@
   <title><![CDATA[Aurélien Hervé]]></title>
   <link href="http://aurelien-herve.com/atom.xml" rel="self"/>
   <link href="http://aurelien-herve.com/"/>
-  <updated>2014-10-14T11:06:39+02:00</updated>
+  <updated>2014-10-14T11:08:24+02:00</updated>
   <id>http://aurelien-herve.com/</id>
   <author>
     <name><![CDATA[A. Hervé]]></name>
@@ -32,6 +32,9 @@
 
 
 <p>instead of presenting all of the model&rsquo;s attributes at each api call.</p>
+
+<!-- more -->
+
 
 <h2>1. Basic grape/entity usage</h2>
 
