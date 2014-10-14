@@ -20,6 +20,7 @@ GET '/users/:id', {users: {email: true, name: true}} # => find a user and get bo
 GET '/users/:id', {users: {email: true, name: true, posts: true}, post: {title: true}} # => find a user and get his name, his email, and all his posts titles
 ```
 instead of presenting all of the model's attributes at each api call.
+<!-- more -->
 ## 1. Basic grape/entity usage
 
 At [Shapter](http://shapter.com) we use the awesome [Grape](https://github.com/intridea/grape) api framework, along with [grape-entity](https://github.com/intridea/grape-entity).
