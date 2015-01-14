@@ -19,6 +19,7 @@ In this tuto I'll show you how to process billions of data with minimal efforts 
  - The same code can be run locally and remotely, so I can debug or process any amount of data without changing anything
  - I should be able to use any language I like, and this does not especially have to be java. In this example I'll be using ruby because it's awesome. Simply translate this tuto to python, perl, php or anything you want, it'll still work.
 
+<!-- more -->
 ## 1. Let's play a game
 
 Let's suppose we are running a huge gaming platform. As the brand new data scientist, we're asked to perform some simple stats on our users.
