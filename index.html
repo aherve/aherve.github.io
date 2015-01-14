@@ -1,1 +1,583 @@
-My Octopress Page is coming soon &hellip;
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Aurélien Hervé</title>
+  <meta name="author" content="A. Hervé">
+
+  
+  <meta name="description" content="">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://aurelien-herve.com">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/bootstrap/bootstrap.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/bootstrap/responsive.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/syntax/syntax.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <style type="text/css">
+    body {
+      padding-bottom: 40px;
+    }
+    h1 {
+      margin-bottom: 15px;
+    }
+    img {
+      max-width: 100%;
+    }
+    .sharing, .meta, .pager {
+      margin: 20px 0px 20px 0px;
+    }
+    .page-footer p {
+      text-align: center;
+    }
+  </style>
+  <script src="/javascripts/libs/jquery.js"></script>
+  <script src="/javascripts/libs/modernizr-2.0.js"></script>
+  <script src="/javascripts/libs/bootstrap.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Aurélien Hervé" type="application/atom+xml">
+  
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-28822787-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://' : 'http://') + 'stats.g.doubleclick.net/dc.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar navbar-inverse">
+  <div class="navbar-inner">
+    <div class="container">
+      <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </a>
+
+      <a class="brand" href="/">Aurélien Hervé</a>
+
+      <div class="nav-collapse">
+        <ul class="nav">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/publications">Conferences & publications</a></li>
+  <li><a href="#" onclick="alert('feel free to drop me a mail ! \n mail @ aurelien-herve.com');">contact</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+
+
+
+        <ul class="nav pull-right" data-subscription="rss">
+          <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+          
+        </ul>
+
+        
+          <form class="pull-right navbar-search" action="http://google.com/search" method="get">
+            <fieldset role="search">
+              <input type="hidden" name="q" value="site:aurelien-herve.com" />
+              <input class="search-query" type="text" name="q" results="0" placeholder="Search"/>
+            </fieldset>
+          </form>
+        
+      </div>
+    </div>
+  </div>
+</div>
+</nav>
+  <div class="container">
+    <div class="row-fluid">
+      <div class="span9">
+  
+  
+  
+    <article class='well'>
+      
+  <header class="page-header">
+    
+      <h1 class="entry-title"><a href="/blog/2015/01/14/big-data-with-hadoop-stream-and-ruby/">Big Data With Hadoop Stream and Ruby (and Not Even One Line of Java)</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2015-01-14T13:42:09+01:00" pubdate data-updated="true">Jan 14<span>th</span>, 2015</time>
+        
+         | <a href="/blog/2015/01/14/big-data-with-hadoop-stream-and-ruby/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><h3>Objective:</h3>
+
+<p>In this tuto I&rsquo;ll show you how to process billions of data with minimal efforts and code with elastic mapreduce and hadoop-stream. Our list to Santa is :</p>
+
+<ul>
+<li>I want to process an unknown amount of data in a scalable, custom way</li>
+<li>The same code can be run locally and remotely, so I can debug or process any amount of data without changing anything</li>
+<li>I should be able to use any language I like, and this does not especially have to be java. In this example I&rsquo;ll be using ruby because it&rsquo;s awesome. Simply translate this tuto to python, perl, php or anything you want, it&rsquo;ll still work.</li>
+</ul>
+
+
+</div>
+  
+  
+    <footer>
+      <strong>
+        <a class="excerpt" rel="full-article" href="/blog/2015/01/14/big-data-with-hadoop-stream-and-ruby/">&#8230;Read on &rarr;</a>
+      </strong>
+    </footer>
+  
+
+
+    </article>
+  
+  
+    <article class='well'>
+      
+  <header class="page-header">
+    
+      <h1 class="entry-title"><a href="/blog/2014/10/14/advanced-api-option-parser-for-grape/">Building an Advanced Api Option Parser for Grape</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-10-14T09:52:35+02:00" pubdate data-updated="true">Oct 14<span>th</span>, 2014</time>
+        
+         | <a href="/blog/2014/10/14/advanced-api-option-parser-for-grape/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>When building an elaborated api, you might want your users to pass parameters in order to describe exactly what response they expect from the api.</p>
+
+<p>For instance, it is useful to be able to do something as</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">GET</span> <span class="s1">&#39;/users/:id&#39;</span><span class="p">,</span> <span class="p">{</span><span class="ss">users</span><span class="p">:</span> <span class="p">{</span><span class="nb">name</span><span class="p">:</span> <span class="kp">true</span><span class="p">}}</span>  <span class="c1"># =&gt; find a user and get his name only</span>
+</span><span class='line'><span class="no">GET</span> <span class="s1">&#39;/users/:id&#39;</span><span class="p">,</span> <span class="p">{</span><span class="ss">users</span><span class="p">:</span> <span class="p">{</span><span class="ss">email</span><span class="p">:</span> <span class="kp">true</span><span class="p">,</span> <span class="nb">name</span><span class="p">:</span> <span class="kp">true</span><span class="p">}}</span> <span class="c1"># =&gt; find a user and get both his name and email</span>
+</span><span class='line'><span class="no">GET</span> <span class="s1">&#39;/users/:id&#39;</span><span class="p">,</span> <span class="p">{</span><span class="ss">users</span><span class="p">:</span> <span class="p">{</span><span class="ss">email</span><span class="p">:</span> <span class="kp">true</span><span class="p">,</span> <span class="nb">name</span><span class="p">:</span> <span class="kp">true</span><span class="p">,</span> <span class="ss">posts</span><span class="p">:</span> <span class="kp">true</span><span class="p">},</span> <span class="ss">post</span><span class="p">:</span> <span class="p">{</span><span class="ss">title</span><span class="p">:</span> <span class="kp">true</span><span class="p">}}</span> <span class="c1"># =&gt; find a user and get his name, his email, and all his posts titles</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>instead of presenting all of the model&rsquo;s attributes at each api call.</p>
+
+</div>
+  
+  
+    <footer>
+      <strong>
+        <a class="excerpt" rel="full-article" href="/blog/2014/10/14/advanced-api-option-parser-for-grape/">&#8230;Read on &rarr;</a>
+      </strong>
+    </footer>
+  
+
+
+    </article>
+  
+  
+    <article class='well'>
+      
+  <header class="page-header">
+    
+      <h1 class="entry-title"><a href="/blog/2014/05/23/how-to-migrate-your-django-users-to-a-new-rails-application/">How to Migrate Your Django Users to a New Rails Application</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-05-23T10:59:28+02:00" pubdate data-updated="true">May 23<span>rd</span>, 2014</time>
+        
+         | <a href="/blog/2014/05/23/how-to-migrate-your-django-users-to-a-new-rails-application/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>I recently had to migrate a users database from a django app to a brand new rails app. Is it possible to do that without having to request all our users to change their passwords ?</p>
+
+</div>
+  
+  
+    <footer>
+      <strong>
+        <a class="excerpt" rel="full-article" href="/blog/2014/05/23/how-to-migrate-your-django-users-to-a-new-rails-application/">&#8230;Read on &rarr;</a>
+      </strong>
+    </footer>
+  
+
+
+    </article>
+  
+  
+    <article class='well'>
+      
+  <header class="page-header">
+    
+      <h1 class="entry-title"><a href="/blog/2014/02/27/some-cool-functional-programming-with-ruby/">Having Fun With Functional Programming in Ruby</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-02-27T21:51:46+01:00" pubdate data-updated="true">Feb 27<span>th</span>, 2014</time>
+        
+         | <a href="/blog/2014/02/27/some-cool-functional-programming-with-ruby/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>Today we&rsquo;re going to play around with functional programming. Yay !</p>
+
+<ul>
+<li><em>Ok, what&rsquo;s that exactly ?</em></li>
+</ul>
+
+
+<p>Wikipedia says it pretty much:</p>
+
+<blockquote><p>functional programming is a programming paradigm, a style of building the structure and elements of computer programs, that treats computation as the evaluation of mathematical functions and avoids state and mutable data.</p></blockquote>
+
+<ul>
+<li>Alright, now let&rsquo;s have some fun with functional programming style, and of course, let&rsquo;s do that with ruby :)</li>
+</ul>
+
+
+<p>In this post we&rsquo;re going to manipulate some (high order) functions, and build a derivative operator in a functional style.</p>
+
+</div>
+  
+  
+    <footer>
+      <strong>
+        <a class="excerpt" rel="full-article" href="/blog/2014/02/27/some-cool-functional-programming-with-ruby/">&#8230;Read on &rarr;</a>
+      </strong>
+    </footer>
+  
+
+
+    </article>
+  
+  
+    <article class='well'>
+      
+  <header class="page-header">
+    
+      <h1 class="entry-title"><a href="/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/">How to Create a Gem Structure With Rspec and Code Coverage</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-02-15T21:59:36+01:00" pubdate data-updated="true">Feb 15<span>th</span>, 2014</time>
+        
+         | <a href="/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><h3>tl;dr</h3>
+
+<p>This is a step-by-step tutorial for creating a gem structure, along with some unit tests and code coverage.</p>
+
+</div>
+  
+  
+    <footer>
+      <strong>
+        <a class="excerpt" rel="full-article" href="/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/">&#8230;Read on &rarr;</a>
+      </strong>
+    </footer>
+  
+
+
+    </article>
+  
+  
+    <article class='well'>
+      
+  <header class="page-header">
+    
+      <h1 class="entry-title"><a href="/blog/2014/02/13/we-should-fix-the-physics-engine/">We Should Fix the Physics Engine</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-02-13T16:54:23+01:00" pubdate data-updated="true">Feb 13<span>th</span>, 2014</time>
+        
+         | <a href="/blog/2014/02/13/we-should-fix-the-physics-engine/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>I think the Universe&rsquo;s laws of physics are now way outdated. Let&rsquo;s suggest a patch for this.</p>
+
+<p><code>Universe::Physics</code> v 2.1.0 release notes</p>
+
+<ul>
+<li><strong>Quantum tunnel glitch</strong> : fixed a bug that randomly caused particles to go through well potentials although they lacked the energy to do it.</li>
+<li><strong>High velocity engine improved</strong> : heavy computations at high speed caused local space-time to bend. The engine is now better and the so-called relativistic effects are now minimized.</li>
+<li><strong>Improved data structure (Heisenberg&rsquo;s bug)</strong>: Variables are stored with more efficiency. It is now possible to know both where a particle is, and at what speed it travels.</li>
+</ul>
+
+
+</div>
+  
+  
+    <footer>
+      <strong>
+        <a class="excerpt" rel="full-article" href="/blog/2014/02/13/we-should-fix-the-physics-engine/">&#8230;Read on &rarr;</a>
+      </strong>
+    </footer>
+  
+
+
+    </article>
+  
+  
+    <article class='well'>
+      
+  <header class="page-header">
+    
+      <h1 class="entry-title"><a href="/blog/2014/02/13/hello-world/">Hello World</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-02-13T16:45:43+01:00" pubdate data-updated="true">Feb 13<span>th</span>, 2014</time>
+        
+         | <a href="/blog/2014/02/13/hello-world/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><p>hello, world !</p>
+</div>
+  
+  
+
+
+    </article>
+  
+  <ul class="pager">
+    
+    <li><a href="/blog/archives">Blog Archives</a></li>
+    
+  </ul>
+</div>
+<aside class="sidebar-nav span3">
+  
+    <section class="well">
+  <ul id="recent_posts" class="nav nav-list">
+    <li class="nav-header">Recent Posts</li>
+    
+      <li class="post">
+        <a href="/blog/2015/01/14/big-data-with-hadoop-stream-and-ruby/">Big data with hadoop stream and ruby (and not even one line of java)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/10/14/advanced-api-option-parser-for-grape/">Building an advanced api option parser for grape</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/05/23/how-to-migrate-your-django-users-to-a-new-rails-application/">how to migrate your django users to a new rails application</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/02/27/some-cool-functional-programming-with-ruby/">Having fun with functional programming in ruby</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/">How to create a gem structure with rspec and code coverage</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section class="well">
+  <ul id="gh_repos" class="nav">
+    <li class="nav-header">GitHub Repos</li>
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/aherve">@aherve</a> on GitHub
+  
+  <script type="text/javascript">
+    $(document).ready(function(){
+        github.showRepos({
+            user: 'aherve',
+            count: 3,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/asides/github.js" type="text/javascript"> </script>
+</section>
+
+<a class="twitter-timeline" href="https://twitter.com/aurel_herve" data-widget-id="439334447087747072">Tweets by @aurel_herve</a>
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+"://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+
+  
+</aside>
+
+    </div>
+  </div>
+  <footer role="contentinfo" class="page-footer"><hr>
+<p>
+  Copyright &copy; 2015 - A. Hervé -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'aherve';
+      
+        
+        var disqus_script = 'count.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) {return;}
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/all.js#appId=212934732101925&xfbml=1";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

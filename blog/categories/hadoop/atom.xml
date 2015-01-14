@@ -1,0 +1,541 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: hadoop | Aurélien Hervé]]></title>
+  <link href="http://aurelien-herve.com/blog/categories/hadoop/atom.xml" rel="self"/>
+  <link href="http://aurelien-herve.com/"/>
+  <updated>2015-01-14T18:47:11+01:00</updated>
+  <id>http://aurelien-herve.com/</id>
+  <author>
+    <name><![CDATA[A. Hervé]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Big data with hadoop stream and ruby (and not even one line of java)]]></title>
+    <link href="http://aurelien-herve.com/blog/2015/01/14/big-data-with-hadoop-stream-and-ruby/"/>
+    <updated>2015-01-14T13:42:09+01:00</updated>
+    <id>http://aurelien-herve.com/blog/2015/01/14/big-data-with-hadoop-stream-and-ruby</id>
+    <content type="html"><![CDATA[<h3>Objective:</h3>
+
+<p>In this tuto I&rsquo;ll show you how to process billions of data with minimal efforts and code with elastic mapreduce and hadoop-stream. Our list to Santa is :</p>
+
+<ul>
+<li>I want to process an unknown amount of data in a scalable, custom way</li>
+<li>The same code can be run locally and remotely, so I can debug or process any amount of data without changing anything</li>
+<li>I should be able to use any language I like, and this does not especially have to be java. In this example I&rsquo;ll be using ruby because it&rsquo;s awesome. Simply translate this tuto to python, perl, php or anything you want, it&rsquo;ll still work.</li>
+</ul>
+
+
+<!-- more -->
+
+
+<h2>1. Let&rsquo;s play a game</h2>
+
+<p>Let&rsquo;s suppose we are running a huge gaming platform. As the brand new data scientist, we&rsquo;re asked to perform some simple stats on our users.</p>
+
+<p>For the sake of the example, let&rsquo;s compute any user&rsquo;s average ranking, per type of played games.</p>
+
+<p>From the platform logs we have to kind of files:</p>
+
+<ul>
+<li>a <code>GameLog</code> file describes the type of game, the date, and a game id</li>
+<li>a <code>PlayerLog</code> file describes how a player scored a game. It contains the game id, the player id, and the player score.</li>
+</ul>
+
+
+<p>This looks like</p>
+
+<p><code>ruby PlayerLog
+PlayerId    Score    GameId    
+1           1       1         
+1           2       2         
+2           0       1         
+2           5       2         
+</code></p>
+
+<p><code>ruby GameLog
+GameId    Type
+1         chess
+2         go   
+</code></p>
+
+<p>Our files are tab separated (tsv) format, and stored on an amazon <a href="https://aws.amazon.com/s3/">aws s3</a> bucket.</p>
+
+<h4>Expected output:</h4>
+
+<p><code>ruby Output
+Player_id    GameType    AverageRank
+1            chess       1
+1            go          2
+2            chess       2
+2            go          1
+</code></p>
+
+<h2>2. Do this with style !</h2>
+
+<p>We are going to solve this algorithm with mapreduce. Map/reduce is a programming paradigm that will allow you to <em>horizontally scale</em> the program execution. This means the more parallel servers you get, the more efficient you will be. Obviously within a reasonable range, mounting 300 servers to process 10 lines of data doesn&rsquo;t look like a good idea..</p>
+
+<p>In addition to be scalable, I really find a map/reduce reduces the amount of code, increases claricity, and should thus be used even for moderate amount of datas.</p>
+
+<p><strong>Bonus:</strong> We&rsquo;ll be able to run our code both locally for quick tests, and remotely for heavy processing \o/</p>
+
+<h4>The approach</h4>
+
+<p>Before entering in the details, here is what we are going to do:</p>
+
+<ul>
+<li>map the raw data and extract useful information (map)</li>
+<li>group the data by <code>game_id</code> key (sort)</li>
+<li>compute each player rank for each game (reduce1)</li>
+<li>group the data by (player,game_type) couples (sort)</li>
+<li>for each (player/game_type) couple, compute the average rank (reduce2)</li>
+</ul>
+
+
+<p>Our steps hence consists in a <em>map &ndash;> reduce &ndash;> reduce</em> procedure. If we think of a second mapper which is identity, then we have two <code>map-&gt;reduce</code> steps</p>
+
+<p>As we plan to use hadoop-stream, the only things we need are three script files that will represent our mapper, and reducers. Each file will consist of a simple script that will &ldquo;eat&rdquo; data via <code>STDIN</code>, and output something to <code>STDOUT</code>.
+Again, I&rsquo;m using ruby as an example here. If you&rsquo;re more comfortable with any other language, then please use it, as long as it knows <code>STDIN</code> and <code>STDOUT</code> !</p>
+
+<p>Thanks to Hadoop, we won&rsquo;t have to take care of the sort steps, the data redundency management, the possible server crashes, and plenty of boring stuff. How nice is that ?</p>
+
+<h3>2.1. first mapper</h3>
+
+<p>The first mapper&rsquo;s role will be to &ldquo;eat&rdquo; raw data with absolutely no context, nor any knowledge of what&rsquo;s happening elsewhere (<em>i.e.</em> on other potential workers). It is very important to note that there is absolutely no relation between two consecutive lines that a mapper receives.
+For instance, some mapper could receive the first line of the first log, then the 10th line of another log file, then the 2nd line of the first log&hellip;etc</p>
+
+<p>```ruby map1.rb</p>
+
+<h1>!/usr/bin/env ruby</h1>
+
+<p>class Mapper</p>
+
+<p>  # initialize a mapper with raw data.
+  def initialize(line)</p>
+
+<pre><code># chomp will remove endline characters
+# split will split the line for every tab character \t
+# strip will remove whitespaces at begining and end of every words
+@data = line.chomp.split("\t").map(&amp;:strip)
+</code></pre>
+
+<p>  end</p>
+
+<p>  # this &ldquo;switch&rdquo; will determine if we are reading a GameLog or a UserLog line
+  # in our example, it is sufficient to look whether @data has 2, or 3 values
+  # for more complex cases, I&rsquo;m sure you&rsquo;ll always find something ;)
+  def log_type</p>
+
+<pre><code>@log_type ||= if @data.size == 2
+            :game_log
+          else
+            :player_log
+          end
+</code></pre>
+
+<p>  end</p>
+
+<p>  def game_log_output</p>
+
+<pre><code>game_id   = @data[0]
+game_type = @data[1]
+
+[game_id, log_type, game_type].join("\t")
+</code></pre>
+
+<p>  end</p>
+
+<p>  def player_log_output</p>
+
+<pre><code>player_id = @data[0]
+score     = @data[1]
+game_id   = @data[2]
+
+[game_id, log_type, player_id, score].join("\t")
+</code></pre>
+
+<p>  end</p>
+
+<p>  # the mapper result
+  def output</p>
+
+<pre><code>return game_log_output if log_type == :game_log
+return player_log_output
+</code></pre>
+
+<p>  end</p>
+
+<p>  # the Map! class method
+  def self.map!(line)</p>
+
+<pre><code>puts Mapper.new(line).output
+</code></pre>
+
+<p>  end</p>
+
+<p>end</p>
+
+<p>ARGF.each do |line|
+  Mapper.map!(line) unless line.chomp.empty? # map every non-empty line with our mapper
+end
+```</p>
+
+<p>As you can see, this mapper will always output the <code>game_id</code> as first key. Then, regarding of the log type, it will either output informations about the player, or the game.</p>
+
+<p>You can run locally your mapper by simply running <code>cat datain/* | map1.rb</code>, whitch outputs something like</p>
+
+<p><code>ruby
+1 player_log  1 1
+2 player_log  1 2
+1 player_log  2 0
+2 player_log  2 5
+1 game_log  chess
+2 game_log  go
+</code></p>
+
+<h3>2.2 first sort</h3>
+
+<p>I feel like this step should be explained even if it does not require any work. What will be happening here is that hadoop will take care of our first outputed results.
+By default, it will split using the <code>tab</code> character, and will assign a single reducer instance for each key.
+Furthermore, it will garanty that a reducer will see &lsquo;sorted&rsquo; results</p>
+
+<p>This step is very important to understand. It means two things for the reducer:</p>
+
+<ul>
+<li>For each primary key (<code>game_id</code> in our example), all the corresponding lines will be sent to the same reducer instance. This allows to process data without any communication between the reducers.</li>
+<li>The data is sorted. This implies that if a reducer sees a <code>game_id=1</code> key, then all following lines will also be <code>game_id=1</code> until there is no <code>game_id=1</code> key left. Ever. As soon a the reducer receives a different primary key, then we can assume <strong>all</strong> the <code>game_id=1</code> lines have been processed.</li>
+</ul>
+
+
+<h4>When running with bash:</h4>
+
+<p>As I said, I should be able to run my code both locally and remotely. Fortunately, we can perform a sort with bash with the <code>sort</code> command.</p>
+
+<p>This trick consists of performing a pure sort on the data. When running locally, we don&rsquo;t have to distribute the data between different instances (which hadoop does) so a sorted data will garanty the two features that we require for our reducer.</p>
+
+<p>running this in bash would yield:</p>
+
+<p><code>cat datain/* | map1.rb | sort</code> =>
+<code>ruby
+1 game_log  chess
+1 player_log  1 1
+1 player_log  2 0
+2 game_log  go
+2 player_log  1 2
+2 player_log  2 5
+</code></p>
+
+<p>As you can see, the data is now grouped by <code>game_id</code> key. How delightful.</p>
+
+<h4>When running with hadoop:</h4>
+
+<p>Simply perform some cool dance moves while hadoop take care of everything.</p>
+
+<p><img class="center" src="/images/success_dance.gif"></p>
+
+<h3>2.3 first reduce</h3>
+
+<p>The first reducer will accumulate the player scores, in order to determine the players ranks in each played game:
+```ruby reduce1.rb</p>
+
+<h1>!/usr/bin/env ruby</h1>
+
+<p>class Reducer</p>
+
+<p>  attr_accessor :key, :game_type</p>
+
+<p>  def initialize(key)</p>
+
+<pre><code>@key = key
+@player_scores = Hash.new
+</code></pre>
+
+<p>  end</p>
+
+<p>  def accumulate(splitted_line)</p>
+
+<pre><code>if splitted_line[1] == 'game_log' #if the line is of type game_log
+  @game_type = splitted_line[2]
+else # if the line is of type player_log
+  player_id = splitted_line[2]
+  player_score = splitted_line[3]
+
+  @player_scores[player_id] = player_score
+end
+</code></pre>
+
+<p>  end</p>
+
+<p>  def output!</p>
+
+<pre><code>ordered_player_ids.each_with_index do |id,i|
+  puts [
+    "#{@game_type}|#{id}", # joined to form a new key for the next reducer
+    i+1 #the rank (+1 so the first has a rank of 1)
+  ].join("\t")
+end
+</code></pre>
+
+<p>  end</p>
+
+<p>  def ordered_player_ids</p>
+
+<pre><code># this will output a list of player_ids, sorted by their scores
+# Note that I'm way too lazy to deal with draws here :D
+@player_scores.sort_by{|player,score| score}.reverse.map(&amp;:first)
+</code></pre>
+
+<p>  end</p>
+
+<p>end</p>
+
+<p>ARGF.each do |line|
+  # split the data
+  splitted_line = line.chomp.split(&ldquo;\t&rdquo;).map(&amp;:strip)</p>
+
+<p>  # get the primary key
+  new_key = splitted_line.first</p>
+
+<p>  #initialize if required
+  @red ||= Reducer.new(new_key)</p>
+
+<p>  # if the key is the same, then continue accumulating
+  if new_key == @red.key</p>
+
+<pre><code>@red.accumulate(splitted_line)
+
+# if the key is new, then first output current results, then instanciate a new reducer
+# Note that once the result is outputed to STDOUT, we can drop the reducer instance
+</code></pre>
+
+<p>  else</p>
+
+<pre><code>@red.output! unless @red.key.nil?
+@red = Reducer.new(new_key)
+@red.accumulate(splitted_line)
+</code></pre>
+
+<p>  end
+end
+@red.output!
+```</p>
+
+<p>Now our process yield <code>cat datain.dat | ./map1.rb | sort | ./reduce1.rb</code> =></p>
+
+<p><code>ruby
+chess|1 1
+chess|2 2
+go|1    2
+go|2    1
+</code></p>
+
+<p>This could be read as</p>
+
+<ul>
+<li><em>player 1 scored one chess game with rank 1</em></li>
+<li><em>player 2 scored one chess game with rank 2</em></li>
+<li><em>player 1 scored one go game with rank 2</em></li>
+<li><em>player 2 scored one go game with rank 1</em></li>
+</ul>
+
+
+<p>Please note something very important here: <strong>The reducer stores almost nothing in memory!</strong>
+As you can see in the script, as soon as a game is finished processing, then we can simply output the result and drop our reducer. Nothing has to stay in memory, so you don&rsquo;t need any ram on your workers, even to process billions of games !</p>
+
+<h3>2.4. coffe break !</h3>
+
+<p><img class="center" src="/images/coffe-break.gif"></p>
+
+<p>If you&rsquo;re still reading this then I&rsquo;m sure you deserve it.</p>
+
+<h3>2.5. Second mapper</h3>
+
+<p>Nothing has to be done here, the data is already formated for the next reduce step.</p>
+
+<p>Conceptualy, we can view this step as a map step, where the mapper would be identity.
+As a reminder that something is still hapening here, I&rsquo;ll pipe the unix <code>cat</code> command to our workflow. Of course it has no practical purpose.</p>
+
+<p>When running our code with hadoop-stream, we&rsquo;ll declare a <code>map</code> step, with identity mapper ( or we&rsquo;ll simply declare <code>cat</code> to be our mapper script, which is pretty much the same)</p>
+
+<h3>2.6 Last step: averaging the scores</h3>
+
+<p>For the sake of the argument, let&rsquo;s say I wasn&rsquo;t this lazy, and generated much more data, which led to a <code>reduce1</code> output that reads</p>
+
+<p><code>ruby
+chess|1 1
+chess|1 1
+chess|2 1
+chess|2 2
+go|1    2
+chess|1 1
+go|1    1
+go|1    1
+chess|2 2
+go|1    1
+go|1    2
+hide-and-seek|1 8
+go|2    1
+go|2    1
+hide-and-seek|3 2
+hide-and-seek|1 8
+chess|1 1
+hide-and-seek|1 8
+chess|1 2
+hide-and-seek|3 5
+hide-and-seek|3 1
+</code></p>
+
+<p>We now have three players, three different games. I also shuffled the results, to emphasis that the reduce step does not necessary provide sorted results.
+Actually it does when running our <em>bash workflow</em>, since we&rsquo;re using <code>sort</code> and a single proc. Generally speaking it is not.</p>
+
+<p>Once we run the identity mapper, followed by the sort step, it will again be sorted so we can write our final reducer as follows:</p>
+
+<p>```ruby reduce2.rb</p>
+
+<h1>!/usr/bin/env ruby</h1>
+
+<p>class Reducer</p>
+
+<p>  attr_accessor :key, :game_type, :user_id</p>
+
+<p>  def initialize(key,value)</p>
+
+<pre><code>@key = key
+
+#split the primary key to get user_id and game type:
+@game_type,@user_id = key.split("|")
+
+#to perform an on-the-fly average, we only need two variables:
+@count = 1
+@average = value.to_f
+</code></pre>
+
+<p>  end</p>
+
+<p>  #on the fly averaging. We do NOT store the entire array !
+  def accumulate(value)</p>
+
+<pre><code>@average  = ( @count.to_f/(@count + 1) * @average ) + (value.to_f / (@count + 1) )
+@count += 1
+</code></pre>
+
+<p>  end</p>
+
+<p>  # follow the expectations
+  def output!</p>
+
+<pre><code>puts [
+  @user_id,
+  @game_type,
+  @average.round(1),
+].join("\t")
+</code></pre>
+
+<p>  end</p>
+
+<p>end</p>
+
+<p>ARGF.each do |line|
+  next if line.chomp.empty?</p>
+
+<p>  # split the data
+  new_key,value = line.chomp.split(&ldquo;\t&rdquo;).map(&amp;:strip)</p>
+
+<p>  #initialize if required
+  @red ||= Reducer.new(new_key,value)</p>
+
+<p>  # if the key is the same, then continue accumulating
+  if new_key == @red.key</p>
+
+<pre><code>@red.accumulate(value)
+</code></pre>
+
+<p>  # if the key is new, then first output current results, then instanciate a new reducer
+  else</p>
+
+<pre><code>@red.output! 
+@red = Reducer.new(new_key,value)
+</code></pre>
+
+<p>  end
+end
+@red.output!
+```</p>
+
+<p>If we run our bash process we get <code>cat datain/* | ./map1.rb | sort | ./reduce1.rb | cat | sort | ./reduce2.rb</code> (assuming we have our new dataset):</p>
+
+<p><code>ruby
+1 chess 1.2
+2 chess 1.7
+1 go  1.4
+2 go  1.0
+1 hide-and-seek 8.0
+3 hide-and-seek 2.7
+</code></p>
+
+<p>And that&rsquo;s it ! we know knows that the player 1 performed an average rank of 1.2 at chess, and an average rank of 8.0 at hide and seek !</p>
+
+<h2>3. Going heavy</h2>
+
+<p>Like I told you, our script are hadoop-ready. Provided you have an aws-amazon account, running our code can be done very easily:</p>
+
+<ul>
+<li>install amazon elastic-mapreduce client and configure it (basically give it your credentials)</li>
+<li>run the first map-reduce stage:</li>
+</ul>
+
+
+<p><code>bash elastic_mapreduce_launcher_stage1.sh
+elastic-mapreduce \
+  --create \
+  --name look_mom_big_data \
+  --stream \
+  --input s3n://yourbucket/data_in \
+  --mapper s3n://yourbucket/src/map1.rb \
+  --reducer s3n://yourbucket/src/reduce1.rb \
+  --output s3n://yourbucket/first_results \
+  --log-uri s3://yourbucket/emr-logs/ \
+  --region eu-west-1 \
+  --instance-type m1.small \
+  --num-instances 300
+</code></p>
+
+<p>then</p>
+
+<p><code>bash elastic_mapreduce_launcher2.sh
+elastic-mapreduce \
+  --create \
+  --name look_mom_big_data \
+  --stream \
+  --input s3n://yourbucket/first_results \
+  --mapper cat \
+  --reducer s3n://yourbucket/src/reduce2.rb \
+  --output s3n://yourbucket/output \
+  --log-uri s3://yourbucket/emr-logs/ \
+  --region eu-west-1 \
+  --instance-type m1.small \
+  --num-instances 300
+</code></p>
+
+<p>Note that I&rsquo;m using two different launchers here. You can also tell your launcher to perform multiple steps by passing them as json. See the elastic-mapreduce doc for that.</p>
+
+<p><em>Wait&hellip; Is it this simple?</em></p>
+
+<p>Yes. This simple.</p>
+
+<h2>Conclusion</h2>
+
+<p>Thanks for reading, you&rsquo;re awesome</p>
+
+<p><img class="center" src="/images/not_impressed.gif"></p>
+
+<p>If this helped you in any way, feel free to drop a comment, correct something, ask a question, or simply let me know this was interesting, thanks !</p>
+
+<p>Please note that this approach can be &mdash; and have been &mdash; used for heavy industrial purposes. You can litterally process billions of rows in no time, with a few lines of code. This is, in my opinion, a tremendous way to prototype and scale your data analysis !</p>
+]]></content>
+  </entry>
+  
+</feed>

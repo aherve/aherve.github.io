@@ -1,0 +1,1767 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Aurélien Hervé]]></title>
+  <link href="http://aurelien-herve.com/atom.xml" rel="self"/>
+  <link href="http://aurelien-herve.com/"/>
+  <updated>2015-01-14T18:47:11+01:00</updated>
+  <id>http://aurelien-herve.com/</id>
+  <author>
+    <name><![CDATA[A. Hervé]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Big data with hadoop stream and ruby (and not even one line of java)]]></title>
+    <link href="http://aurelien-herve.com/blog/2015/01/14/big-data-with-hadoop-stream-and-ruby/"/>
+    <updated>2015-01-14T13:42:09+01:00</updated>
+    <id>http://aurelien-herve.com/blog/2015/01/14/big-data-with-hadoop-stream-and-ruby</id>
+    <content type="html"><![CDATA[<h3>Objective:</h3>
+
+<p>In this tuto I&rsquo;ll show you how to process billions of data with minimal efforts and code with elastic mapreduce and hadoop-stream. Our list to Santa is :</p>
+
+<ul>
+<li>I want to process an unknown amount of data in a scalable, custom way</li>
+<li>The same code can be run locally and remotely, so I can debug or process any amount of data without changing anything</li>
+<li>I should be able to use any language I like, and this does not especially have to be java. In this example I&rsquo;ll be using ruby because it&rsquo;s awesome. Simply translate this tuto to python, perl, php or anything you want, it&rsquo;ll still work.</li>
+</ul>
+
+
+<!-- more -->
+
+
+<h2>1. Let&rsquo;s play a game</h2>
+
+<p>Let&rsquo;s suppose we are running a huge gaming platform. As the brand new data scientist, we&rsquo;re asked to perform some simple stats on our users.</p>
+
+<p>For the sake of the example, let&rsquo;s compute any user&rsquo;s average ranking, per type of played games.</p>
+
+<p>From the platform logs we have to kind of files:</p>
+
+<ul>
+<li>a <code>GameLog</code> file describes the type of game, the date, and a game id</li>
+<li>a <code>PlayerLog</code> file describes how a player scored a game. It contains the game id, the player id, and the player score.</li>
+</ul>
+
+
+<p>This looks like</p>
+
+<figure class='code'><figcaption><span>PlayerLog</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">PlayerId</span>    <span class="no">Score</span>    <span class="no">GameId</span>
+</span><span class='line'><span class="mi">1</span>           <span class="mi">1</span>       <span class="mi">1</span>
+</span><span class='line'><span class="mi">1</span>           <span class="mi">2</span>       <span class="mi">2</span>
+</span><span class='line'><span class="mi">2</span>           <span class="mi">0</span>       <span class="mi">1</span>
+</span><span class='line'><span class="mi">2</span>           <span class="mi">5</span>       <span class="mi">2</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>GameLog</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">GameId</span>    <span class="no">Type</span>
+</span><span class='line'><span class="mi">1</span>         <span class="n">chess</span>
+</span><span class='line'><span class="mi">2</span>         <span class="n">go</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Our files are tab separated (tsv) format, and stored on an amazon <a href="https://aws.amazon.com/s3/">aws s3</a> bucket.</p>
+
+<h4>Expected output:</h4>
+
+<figure class='code'><figcaption><span>Output</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">Player_id</span>    <span class="no">GameType</span>    <span class="no">AverageRank</span>
+</span><span class='line'><span class="mi">1</span>            <span class="n">chess</span>       <span class="mi">1</span>
+</span><span class='line'><span class="mi">1</span>            <span class="n">go</span>          <span class="mi">2</span>
+</span><span class='line'><span class="mi">2</span>            <span class="n">chess</span>       <span class="mi">2</span>
+</span><span class='line'><span class="mi">2</span>            <span class="n">go</span>          <span class="mi">1</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>2. Do this with style !</h2>
+
+<p>We are going to solve this algorithm with mapreduce. Map/reduce is a programming paradigm that will allow you to <em>horizontally scale</em> the program execution. This means the more parallel servers you get, the more efficient you will be. Obviously within a reasonable range, mounting 300 servers to process 10 lines of data doesn&rsquo;t look like a good idea..</p>
+
+<p>In addition to be scalable, I really find a map/reduce reduces the amount of code, increases claricity, and should thus be used even for moderate amount of datas.</p>
+
+<p><strong>Bonus:</strong> We&rsquo;ll be able to run our code both locally for quick tests, and remotely for heavy processing \o/</p>
+
+<h4>The approach</h4>
+
+<p>Before entering in the details, here is what we are going to do:</p>
+
+<ul>
+<li>map the raw data and extract useful information (map)</li>
+<li>group the data by <code>game_id</code> key (sort)</li>
+<li>compute each player rank for each game (reduce1)</li>
+<li>group the data by (player,game_type) couples (sort)</li>
+<li>for each (player/game_type) couple, compute the average rank (reduce2)</li>
+</ul>
+
+
+<p>Our steps hence consists in a <em>map &ndash;> reduce &ndash;> reduce</em> procedure. If we think of a second mapper which is identity, then we have two <code>map-&gt;reduce</code> steps</p>
+
+<p>As we plan to use hadoop-stream, the only things we need are three script files that will represent our mapper, and reducers. Each file will consist of a simple script that will &ldquo;eat&rdquo; data via <code>STDIN</code>, and output something to <code>STDOUT</code>.
+Again, I&rsquo;m using ruby as an example here. If you&rsquo;re more comfortable with any other language, then please use it, as long as it knows <code>STDIN</code> and <code>STDOUT</code> !</p>
+
+<p>Thanks to Hadoop, we won&rsquo;t have to take care of the sort steps, the data redundency management, the possible server crashes, and plenty of boring stuff. How nice is that ?</p>
+
+<h3>2.1. first mapper</h3>
+
+<p>The first mapper&rsquo;s role will be to &ldquo;eat&rdquo; raw data with absolutely no context, nor any knowledge of what&rsquo;s happening elsewhere (<em>i.e.</em> on other potential workers). It is very important to note that there is absolutely no relation between two consecutive lines that a mapper receives.
+For instance, some mapper could receive the first line of the first log, then the 10th line of another log file, then the 2nd line of the first log&hellip;etc</p>
+
+<figure class='code'><figcaption><span>map1.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1">#!/usr/bin/env ruby</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">class</span> <span class="nc">Mapper</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># initialize a mapper with raw data.</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+</span><span class='line'>    <span class="c1"># chomp will remove endline characters</span>
+</span><span class='line'>    <span class="c1"># split will split the line for every tab character \t</span>
+</span><span class='line'>    <span class="c1"># strip will remove whitespaces at begining and end of every words</span>
+</span><span class='line'>    <span class="vi">@data</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">chomp</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="o">&amp;</span><span class="ss">:strip</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># this &quot;switch&quot; will determine if we are reading a GameLog or a UserLog line</span>
+</span><span class='line'>  <span class="c1"># in our example, it is sufficient to look whether @data has 2, or 3 values</span>
+</span><span class='line'>  <span class="c1"># for more complex cases, I&#39;m sure you&#39;ll always find something ;)</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">log_type</span>
+</span><span class='line'>    <span class="vi">@log_type</span> <span class="o">||=</span> <span class="k">if</span> <span class="vi">@data</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">2</span>
+</span><span class='line'>                <span class="ss">:game_log</span>
+</span><span class='line'>              <span class="k">else</span>
+</span><span class='line'>                <span class="ss">:player_log</span>
+</span><span class='line'>              <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">game_log_output</span>
+</span><span class='line'>    <span class="n">game_id</span>   <span class="o">=</span> <span class="vi">@data</span><span class="o">[</span><span class="mi">0</span><span class="o">]</span>
+</span><span class='line'>    <span class="n">game_type</span> <span class="o">=</span> <span class="vi">@data</span><span class="o">[</span><span class="mi">1</span><span class="o">]</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="o">[</span><span class="n">game_id</span><span class="p">,</span> <span class="n">log_type</span><span class="p">,</span> <span class="n">game_type</span><span class="o">].</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">player_log_output</span>
+</span><span class='line'>    <span class="n">player_id</span> <span class="o">=</span> <span class="vi">@data</span><span class="o">[</span><span class="mi">0</span><span class="o">]</span>
+</span><span class='line'>    <span class="n">score</span>     <span class="o">=</span> <span class="vi">@data</span><span class="o">[</span><span class="mi">1</span><span class="o">]</span>
+</span><span class='line'>    <span class="n">game_id</span>   <span class="o">=</span> <span class="vi">@data</span><span class="o">[</span><span class="mi">2</span><span class="o">]</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="o">[</span><span class="n">game_id</span><span class="p">,</span> <span class="n">log_type</span><span class="p">,</span> <span class="n">player_id</span><span class="p">,</span> <span class="n">score</span><span class="o">].</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># the mapper result</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">output</span>
+</span><span class='line'>    <span class="k">return</span> <span class="n">game_log_output</span> <span class="k">if</span> <span class="n">log_type</span> <span class="o">==</span> <span class="ss">:game_log</span>
+</span><span class='line'>    <span class="k">return</span> <span class="n">player_log_output</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># the Map! class method</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">map!</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+</span><span class='line'>    <span class="nb">puts</span> <span class="no">Mapper</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">line</span><span class="p">)</span><span class="o">.</span><span class="n">output</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="no">ARGF</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">line</span><span class="o">|</span>
+</span><span class='line'>  <span class="no">Mapper</span><span class="o">.</span><span class="n">map!</span><span class="p">(</span><span class="n">line</span><span class="p">)</span> <span class="k">unless</span> <span class="n">line</span><span class="o">.</span><span class="n">chomp</span><span class="o">.</span><span class="n">empty?</span> <span class="c1"># map every non-empty line with our mapper</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>As you can see, this mapper will always output the <code>game_id</code> as first key. Then, regarding of the log type, it will either output informations about the player, or the game.</p>
+
+<p>You can run locally your mapper by simply running <code>cat datain/* | map1.rb</code>, whitch outputs something like</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="mi">1</span> <span class="n">player_log</span>  <span class="mi">1</span> <span class="mi">1</span>
+</span><span class='line'><span class="mi">2</span> <span class="n">player_log</span>  <span class="mi">1</span> <span class="mi">2</span>
+</span><span class='line'><span class="mi">1</span> <span class="n">player_log</span>  <span class="mi">2</span> <span class="mi">0</span>
+</span><span class='line'><span class="mi">2</span> <span class="n">player_log</span>  <span class="mi">2</span> <span class="mi">5</span>
+</span><span class='line'><span class="mi">1</span> <span class="n">game_log</span>  <span class="n">chess</span>
+</span><span class='line'><span class="mi">2</span> <span class="n">game_log</span>  <span class="n">go</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>2.2 first sort</h3>
+
+<p>I feel like this step should be explained even if it does not require any work. What will be happening here is that hadoop will take care of our first outputed results.
+By default, it will split using the <code>tab</code> character, and will assign a single reducer instance for each key.
+Furthermore, it will garanty that a reducer will see &lsquo;sorted&rsquo; results</p>
+
+<p>This step is very important to understand. It means two things for the reducer:</p>
+
+<ul>
+<li>For each primary key (<code>game_id</code> in our example), all the corresponding lines will be sent to the same reducer instance. This allows to process data without any communication between the reducers.</li>
+<li>The data is sorted. This implies that if a reducer sees a <code>game_id=1</code> key, then all following lines will also be <code>game_id=1</code> until there is no <code>game_id=1</code> key left. Ever. As soon a the reducer receives a different primary key, then we can assume <strong>all</strong> the <code>game_id=1</code> lines have been processed.</li>
+</ul>
+
+
+<h4>When running with bash:</h4>
+
+<p>As I said, I should be able to run my code both locally and remotely. Fortunately, we can perform a sort with bash with the <code>sort</code> command.</p>
+
+<p>This trick consists of performing a pure sort on the data. When running locally, we don&rsquo;t have to distribute the data between different instances (which hadoop does) so a sorted data will garanty the two features that we require for our reducer.</p>
+
+<p>running this in bash would yield:</p>
+
+<p><code>cat datain/* | map1.rb | sort</code> =></p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="mi">1</span> <span class="n">game_log</span>  <span class="n">chess</span>
+</span><span class='line'><span class="mi">1</span> <span class="n">player_log</span>  <span class="mi">1</span> <span class="mi">1</span>
+</span><span class='line'><span class="mi">1</span> <span class="n">player_log</span>  <span class="mi">2</span> <span class="mi">0</span>
+</span><span class='line'><span class="mi">2</span> <span class="n">game_log</span>  <span class="n">go</span>
+</span><span class='line'><span class="mi">2</span> <span class="n">player_log</span>  <span class="mi">1</span> <span class="mi">2</span>
+</span><span class='line'><span class="mi">2</span> <span class="n">player_log</span>  <span class="mi">2</span> <span class="mi">5</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>As you can see, the data is now grouped by <code>game_id</code> key. How delightful.</p>
+
+<h4>When running with hadoop:</h4>
+
+<p>Simply perform some cool dance moves while hadoop take care of everything.</p>
+
+<p><img class="center" src="http://aurelien-herve.com/images/success_dance.gif"></p>
+
+<h3>2.3 first reduce</h3>
+
+<p>The first reducer will accumulate the player scores, in order to determine the players ranks in each played game:</p>
+
+<figure class='code'><figcaption><span>reduce1.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1">#!/usr/bin/env ruby</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">class</span> <span class="nc">Reducer</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kp">attr_accessor</span> <span class="ss">:key</span><span class="p">,</span> <span class="ss">:game_type</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+</span><span class='line'>    <span class="vi">@key</span> <span class="o">=</span> <span class="n">key</span>
+</span><span class='line'>    <span class="vi">@player_scores</span> <span class="o">=</span> <span class="no">Hash</span><span class="o">.</span><span class="n">new</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">accumulate</span><span class="p">(</span><span class="n">splitted_line</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">if</span> <span class="n">splitted_line</span><span class="o">[</span><span class="mi">1</span><span class="o">]</span> <span class="o">==</span> <span class="s1">&#39;game_log&#39;</span> <span class="c1">#if the line is of type game_log</span>
+</span><span class='line'>      <span class="vi">@game_type</span> <span class="o">=</span> <span class="n">splitted_line</span><span class="o">[</span><span class="mi">2</span><span class="o">]</span>
+</span><span class='line'>    <span class="k">else</span> <span class="c1"># if the line is of type player_log</span>
+</span><span class='line'>      <span class="n">player_id</span> <span class="o">=</span> <span class="n">splitted_line</span><span class="o">[</span><span class="mi">2</span><span class="o">]</span>
+</span><span class='line'>      <span class="n">player_score</span> <span class="o">=</span> <span class="n">splitted_line</span><span class="o">[</span><span class="mi">3</span><span class="o">]</span>
+</span><span class='line'>
+</span><span class='line'>      <span class="vi">@player_scores</span><span class="o">[</span><span class="n">player_id</span><span class="o">]</span> <span class="o">=</span> <span class="n">player_score</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">output!</span>
+</span><span class='line'>    <span class="n">ordered_player_ids</span><span class="o">.</span><span class="n">each_with_index</span> <span class="k">do</span> <span class="o">|</span><span class="nb">id</span><span class="p">,</span><span class="n">i</span><span class="o">|</span>
+</span><span class='line'>      <span class="nb">puts</span> <span class="o">[</span>
+</span><span class='line'>        <span class="s2">&quot;</span><span class="si">#{</span><span class="vi">@game_type</span><span class="si">}</span><span class="s2">|</span><span class="si">#{</span><span class="nb">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="c1"># joined to form a new key for the next reducer</span>
+</span><span class='line'>        <span class="n">i</span><span class="o">+</span><span class="mi">1</span> <span class="c1">#the rank (+1 so the first has a rank of 1)</span>
+</span><span class='line'>      <span class="o">].</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">ordered_player_ids</span>
+</span><span class='line'>    <span class="c1"># this will output a list of player_ids, sorted by their scores</span>
+</span><span class='line'>    <span class="c1"># Note that I&#39;m way too lazy to deal with draws here :D</span>
+</span><span class='line'>    <span class="vi">@player_scores</span><span class="o">.</span><span class="n">sort_by</span><span class="p">{</span><span class="o">|</span><span class="n">player</span><span class="p">,</span><span class="n">score</span><span class="o">|</span> <span class="n">score</span><span class="p">}</span><span class="o">.</span><span class="n">reverse</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="o">&amp;</span><span class="ss">:first</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'><span class="no">ARGF</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">line</span><span class="o">|</span>
+</span><span class='line'>  <span class="c1"># split the data</span>
+</span><span class='line'>  <span class="n">splitted_line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">chomp</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="o">&amp;</span><span class="ss">:strip</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># get the primary key</span>
+</span><span class='line'>  <span class="n">new_key</span> <span class="o">=</span> <span class="n">splitted_line</span><span class="o">.</span><span class="n">first</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">#initialize if required</span>
+</span><span class='line'>  <span class="vi">@red</span> <span class="o">||=</span> <span class="no">Reducer</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">new_key</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># if the key is the same, then continue accumulating</span>
+</span><span class='line'>  <span class="k">if</span> <span class="n">new_key</span> <span class="o">==</span> <span class="vi">@red</span><span class="o">.</span><span class="n">key</span>
+</span><span class='line'>    <span class="vi">@red</span><span class="o">.</span><span class="n">accumulate</span><span class="p">(</span><span class="n">splitted_line</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1"># if the key is new, then first output current results, then instanciate a new reducer</span>
+</span><span class='line'>    <span class="c1"># Note that once the result is outputed to STDOUT, we can drop the reducer instance</span>
+</span><span class='line'>  <span class="k">else</span>
+</span><span class='line'>    <span class="vi">@red</span><span class="o">.</span><span class="n">output!</span> <span class="k">unless</span> <span class="vi">@red</span><span class="o">.</span><span class="n">key</span><span class="o">.</span><span class="n">nil?</span>
+</span><span class='line'>    <span class="vi">@red</span> <span class="o">=</span> <span class="no">Reducer</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">new_key</span><span class="p">)</span>
+</span><span class='line'>    <span class="vi">@red</span><span class="o">.</span><span class="n">accumulate</span><span class="p">(</span><span class="n">splitted_line</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'><span class="vi">@red</span><span class="o">.</span><span class="n">output!</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now our process yield <code>cat datain.dat | ./map1.rb | sort | ./reduce1.rb</code> =></p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">chess</span><span class="o">|</span><span class="mi">1</span> <span class="mi">1</span>
+</span><span class='line'><span class="n">chess</span><span class="o">|</span><span class="mi">2</span> <span class="mi">2</span>
+</span><span class='line'><span class="n">go</span><span class="o">|</span><span class="mi">1</span>    <span class="mi">2</span>
+</span><span class='line'><span class="n">go</span><span class="o">|</span><span class="mi">2</span>    <span class="mi">1</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This could be read as</p>
+
+<ul>
+<li><em>player 1 scored one chess game with rank 1</em></li>
+<li><em>player 2 scored one chess game with rank 2</em></li>
+<li><em>player 1 scored one go game with rank 2</em></li>
+<li><em>player 2 scored one go game with rank 1</em></li>
+</ul>
+
+
+<p>Please note something very important here: <strong>The reducer stores almost nothing in memory!</strong>
+As you can see in the script, as soon as a game is finished processing, then we can simply output the result and drop our reducer. Nothing has to stay in memory, so you don&rsquo;t need any ram on your workers, even to process billions of games !</p>
+
+<h3>2.4. coffe break !</h3>
+
+<p><img class="center" src="http://aurelien-herve.com/images/coffe-break.gif"></p>
+
+<p>If you&rsquo;re still reading this then I&rsquo;m sure you deserve it.</p>
+
+<h3>2.5. Second mapper</h3>
+
+<p>Nothing has to be done here, the data is already formated for the next reduce step.</p>
+
+<p>Conceptualy, we can view this step as a map step, where the mapper would be identity.
+As a reminder that something is still hapening here, I&rsquo;ll pipe the unix <code>cat</code> command to our workflow. Of course it has no practical purpose.</p>
+
+<p>When running our code with hadoop-stream, we&rsquo;ll declare a <code>map</code> step, with identity mapper ( or we&rsquo;ll simply declare <code>cat</code> to be our mapper script, which is pretty much the same)</p>
+
+<h3>2.6 Last step: averaging the scores</h3>
+
+<p>For the sake of the argument, let&rsquo;s say I wasn&rsquo;t this lazy, and generated much more data, which led to a <code>reduce1</code> output that reads</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">chess</span><span class="o">|</span><span class="mi">1</span> <span class="mi">1</span>
+</span><span class='line'><span class="n">chess</span><span class="o">|</span><span class="mi">1</span> <span class="mi">1</span>
+</span><span class='line'><span class="n">chess</span><span class="o">|</span><span class="mi">2</span> <span class="mi">1</span>
+</span><span class='line'><span class="n">chess</span><span class="o">|</span><span class="mi">2</span> <span class="mi">2</span>
+</span><span class='line'><span class="n">go</span><span class="o">|</span><span class="mi">1</span>    <span class="mi">2</span>
+</span><span class='line'><span class="n">chess</span><span class="o">|</span><span class="mi">1</span> <span class="mi">1</span>
+</span><span class='line'><span class="n">go</span><span class="o">|</span><span class="mi">1</span>    <span class="mi">1</span>
+</span><span class='line'><span class="n">go</span><span class="o">|</span><span class="mi">1</span>    <span class="mi">1</span>
+</span><span class='line'><span class="n">chess</span><span class="o">|</span><span class="mi">2</span> <span class="mi">2</span>
+</span><span class='line'><span class="n">go</span><span class="o">|</span><span class="mi">1</span>    <span class="mi">1</span>
+</span><span class='line'><span class="n">go</span><span class="o">|</span><span class="mi">1</span>    <span class="mi">2</span>
+</span><span class='line'><span class="n">hide</span><span class="o">-</span><span class="ow">and</span><span class="o">-</span><span class="n">seek</span><span class="o">|</span><span class="mi">1</span> <span class="mi">8</span>
+</span><span class='line'><span class="n">go</span><span class="o">|</span><span class="mi">2</span>    <span class="mi">1</span>
+</span><span class='line'><span class="n">go</span><span class="o">|</span><span class="mi">2</span>    <span class="mi">1</span>
+</span><span class='line'><span class="n">hide</span><span class="o">-</span><span class="ow">and</span><span class="o">-</span><span class="n">seek</span><span class="o">|</span><span class="mi">3</span> <span class="mi">2</span>
+</span><span class='line'><span class="n">hide</span><span class="o">-</span><span class="ow">and</span><span class="o">-</span><span class="n">seek</span><span class="o">|</span><span class="mi">1</span> <span class="mi">8</span>
+</span><span class='line'><span class="n">chess</span><span class="o">|</span><span class="mi">1</span> <span class="mi">1</span>
+</span><span class='line'><span class="n">hide</span><span class="o">-</span><span class="ow">and</span><span class="o">-</span><span class="n">seek</span><span class="o">|</span><span class="mi">1</span> <span class="mi">8</span>
+</span><span class='line'><span class="n">chess</span><span class="o">|</span><span class="mi">1</span> <span class="mi">2</span>
+</span><span class='line'><span class="n">hide</span><span class="o">-</span><span class="ow">and</span><span class="o">-</span><span class="n">seek</span><span class="o">|</span><span class="mi">3</span> <span class="mi">5</span>
+</span><span class='line'><span class="n">hide</span><span class="o">-</span><span class="ow">and</span><span class="o">-</span><span class="n">seek</span><span class="o">|</span><span class="mi">3</span> <span class="mi">1</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We now have three players, three different games. I also shuffled the results, to emphasis that the reduce step does not necessary provide sorted results.
+Actually it does when running our <em>bash workflow</em>, since we&rsquo;re using <code>sort</code> and a single proc. Generally speaking it is not.</p>
+
+<p>Once we run the identity mapper, followed by the sort step, it will again be sorted so we can write our final reducer as follows:</p>
+
+<figure class='code'><figcaption><span>reduce2.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1">#!/usr/bin/env ruby</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">class</span> <span class="nc">Reducer</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="kp">attr_accessor</span> <span class="ss">:key</span><span class="p">,</span> <span class="ss">:game_type</span><span class="p">,</span> <span class="ss">:user_id</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">initialize</span><span class="p">(</span><span class="n">key</span><span class="p">,</span><span class="n">value</span><span class="p">)</span>
+</span><span class='line'>    <span class="vi">@key</span> <span class="o">=</span> <span class="n">key</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1">#split the primary key to get user_id and game type:</span>
+</span><span class='line'>    <span class="vi">@game_type</span><span class="p">,</span><span class="vi">@user_id</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;|&quot;</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1">#to perform an on-the-fly average, we only need two variables:</span>
+</span><span class='line'>    <span class="vi">@count</span> <span class="o">=</span> <span class="mi">1</span>
+</span><span class='line'>    <span class="vi">@average</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">to_f</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">#on the fly averaging. We do NOT store the entire array !</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">accumulate</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+</span><span class='line'>    <span class="vi">@average</span>  <span class="o">=</span> <span class="p">(</span> <span class="vi">@count</span><span class="o">.</span><span class="n">to_f</span><span class="o">/</span><span class="p">(</span><span class="vi">@count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="vi">@average</span> <span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">to_f</span> <span class="o">/</span> <span class="p">(</span><span class="vi">@count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="p">)</span>
+</span><span class='line'>    <span class="vi">@count</span> <span class="o">+=</span> <span class="mi">1</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># follow the expectations</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">output!</span>
+</span><span class='line'>    <span class="nb">puts</span> <span class="o">[</span>
+</span><span class='line'>      <span class="vi">@user_id</span><span class="p">,</span>
+</span><span class='line'>      <span class="vi">@game_type</span><span class="p">,</span>
+</span><span class='line'>      <span class="vi">@average</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span>
+</span><span class='line'>    <span class="o">].</span><span class="n">join</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'><span class="no">ARGF</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">line</span><span class="o">|</span>
+</span><span class='line'>  <span class="k">next</span> <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">chomp</span><span class="o">.</span><span class="n">empty?</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># split the data</span>
+</span><span class='line'>  <span class="n">new_key</span><span class="p">,</span><span class="n">value</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">chomp</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="o">&amp;</span><span class="ss">:strip</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">#initialize if required</span>
+</span><span class='line'>  <span class="vi">@red</span> <span class="o">||=</span> <span class="no">Reducer</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">new_key</span><span class="p">,</span><span class="n">value</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># if the key is the same, then continue accumulating</span>
+</span><span class='line'>  <span class="k">if</span> <span class="n">new_key</span> <span class="o">==</span> <span class="vi">@red</span><span class="o">.</span><span class="n">key</span>
+</span><span class='line'>    <span class="vi">@red</span><span class="o">.</span><span class="n">accumulate</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># if the key is new, then first output current results, then instanciate a new reducer</span>
+</span><span class='line'>  <span class="k">else</span>
+</span><span class='line'>    <span class="vi">@red</span><span class="o">.</span><span class="n">output!</span>
+</span><span class='line'>    <span class="vi">@red</span> <span class="o">=</span> <span class="no">Reducer</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="n">new_key</span><span class="p">,</span><span class="n">value</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'><span class="vi">@red</span><span class="o">.</span><span class="n">output!</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>If we run our bash process we get <code>cat datain/* | ./map1.rb | sort | ./reduce1.rb | cat | sort | ./reduce2.rb</code> (assuming we have our new dataset):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="mi">1</span> <span class="n">chess</span> <span class="mi">1</span><span class="o">.</span><span class="mi">2</span>
+</span><span class='line'><span class="mi">2</span> <span class="n">chess</span> <span class="mi">1</span><span class="o">.</span><span class="mi">7</span>
+</span><span class='line'><span class="mi">1</span> <span class="n">go</span>  <span class="mi">1</span><span class="o">.</span><span class="mi">4</span>
+</span><span class='line'><span class="mi">2</span> <span class="n">go</span>  <span class="mi">1</span><span class="o">.</span><span class="mi">0</span>
+</span><span class='line'><span class="mi">1</span> <span class="n">hide</span><span class="o">-</span><span class="ow">and</span><span class="o">-</span><span class="n">seek</span> <span class="mi">8</span><span class="o">.</span><span class="mi">0</span>
+</span><span class='line'><span class="mi">3</span> <span class="n">hide</span><span class="o">-</span><span class="ow">and</span><span class="o">-</span><span class="n">seek</span> <span class="mi">2</span><span class="o">.</span><span class="mi">7</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>And that&rsquo;s it ! we know knows that the player 1 performed an average rank of 1.2 at chess, and an average rank of 8.0 at hide and seek !</p>
+
+<h2>3. Going heavy</h2>
+
+<p>Like I told you, our script are hadoop-ready. Provided you have an aws-amazon account, running our code can be done very easily:</p>
+
+<ul>
+<li>install amazon elastic-mapreduce client and configure it (basically give it your credentials)</li>
+<li>run the first map-reduce stage:</li>
+</ul>
+
+
+<figure class='code'><figcaption><span>elastic_mapreduce_launcher_stage1.sh</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>elastic-mapreduce <span class="se">\</span>
+</span><span class='line'>  --create <span class="se">\</span>
+</span><span class='line'>  --name look_mom_big_data <span class="se">\</span>
+</span><span class='line'>  --stream <span class="se">\</span>
+</span><span class='line'>  --input s3n://yourbucket/data_in <span class="se">\</span>
+</span><span class='line'>  --mapper s3n://yourbucket/src/map1.rb <span class="se">\</span>
+</span><span class='line'>  --reducer s3n://yourbucket/src/reduce1.rb <span class="se">\</span>
+</span><span class='line'>  --output s3n://yourbucket/first_results <span class="se">\</span>
+</span><span class='line'>  --log-uri s3://yourbucket/emr-logs/ <span class="se">\</span>
+</span><span class='line'>  --region eu-west-1 <span class="se">\</span>
+</span><span class='line'>  --instance-type m1.small <span class="se">\</span>
+</span><span class='line'>  --num-instances 300
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>then</p>
+
+<figure class='code'><figcaption><span>elastic_mapreduce_launcher2.sh</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>elastic-mapreduce <span class="se">\</span>
+</span><span class='line'>  --create <span class="se">\</span>
+</span><span class='line'>  --name look_mom_big_data <span class="se">\</span>
+</span><span class='line'>  --stream <span class="se">\</span>
+</span><span class='line'>  --input s3n://yourbucket/first_results <span class="se">\</span>
+</span><span class='line'>  --mapper cat <span class="se">\</span>
+</span><span class='line'>  --reducer s3n://yourbucket/src/reduce2.rb <span class="se">\</span>
+</span><span class='line'>  --output s3n://yourbucket/output <span class="se">\</span>
+</span><span class='line'>  --log-uri s3://yourbucket/emr-logs/ <span class="se">\</span>
+</span><span class='line'>  --region eu-west-1 <span class="se">\</span>
+</span><span class='line'>  --instance-type m1.small <span class="se">\</span>
+</span><span class='line'>  --num-instances 300
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Note that I&rsquo;m using two different launchers here. You can also tell your launcher to perform multiple steps by passing them as json. See the elastic-mapreduce doc for that.</p>
+
+<p><em>Wait&hellip; Is it this simple?</em></p>
+
+<p>Yes. This simple.</p>
+
+<h2>Conclusion</h2>
+
+<p>Thanks for reading, you&rsquo;re awesome</p>
+
+<p><img class="center" src="http://aurelien-herve.com/images/not_impressed.gif"></p>
+
+<p>If this helped you in any way, feel free to drop a comment, correct something, ask a question, or simply let me know this was interesting, thanks !</p>
+
+<p>Please note that this approach can be &mdash; and have been &mdash; used for heavy industrial purposes. You can litterally process billions of rows in no time, with a few lines of code. This is, in my opinion, a tremendous way to prototype and scale your data analysis !</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Building an advanced api option parser for grape]]></title>
+    <link href="http://aurelien-herve.com/blog/2014/10/14/advanced-api-option-parser-for-grape/"/>
+    <updated>2014-10-14T09:52:35+02:00</updated>
+    <id>http://aurelien-herve.com/blog/2014/10/14/advanced-api-option-parser-for-grape</id>
+    <content type="html"><![CDATA[<p>When building an elaborated api, you might want your users to pass parameters in order to describe exactly what response they expect from the api.</p>
+
+<p>For instance, it is useful to be able to do something as</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">GET</span> <span class="s1">&#39;/users/:id&#39;</span><span class="p">,</span> <span class="p">{</span><span class="ss">users</span><span class="p">:</span> <span class="p">{</span><span class="nb">name</span><span class="p">:</span> <span class="kp">true</span><span class="p">}}</span>  <span class="c1"># =&gt; find a user and get his name only</span>
+</span><span class='line'><span class="no">GET</span> <span class="s1">&#39;/users/:id&#39;</span><span class="p">,</span> <span class="p">{</span><span class="ss">users</span><span class="p">:</span> <span class="p">{</span><span class="ss">email</span><span class="p">:</span> <span class="kp">true</span><span class="p">,</span> <span class="nb">name</span><span class="p">:</span> <span class="kp">true</span><span class="p">}}</span> <span class="c1"># =&gt; find a user and get both his name and email</span>
+</span><span class='line'><span class="no">GET</span> <span class="s1">&#39;/users/:id&#39;</span><span class="p">,</span> <span class="p">{</span><span class="ss">users</span><span class="p">:</span> <span class="p">{</span><span class="ss">email</span><span class="p">:</span> <span class="kp">true</span><span class="p">,</span> <span class="nb">name</span><span class="p">:</span> <span class="kp">true</span><span class="p">,</span> <span class="ss">posts</span><span class="p">:</span> <span class="kp">true</span><span class="p">},</span> <span class="ss">post</span><span class="p">:</span> <span class="p">{</span><span class="ss">title</span><span class="p">:</span> <span class="kp">true</span><span class="p">}}</span> <span class="c1"># =&gt; find a user and get his name, his email, and all his posts titles</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>instead of presenting all of the model&rsquo;s attributes at each api call.</p>
+
+<!-- more -->
+
+
+<h2>1. Basic grape/entity usage</h2>
+
+<p>At <a href="http://shapter.com">Shapter</a> we use the awesome <a href="https://github.com/intridea/grape">Grape</a> api framework, along with <a href="https://github.com/intridea/grape-entity">grape-entity</a>.</p>
+
+<p>For instance, let&rsquo;s say we wan to build a route that finds and present a user:</p>
+
+<figure class='code'><figcaption><span>AwesomeApp/entities/user.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">AwesomeApp</span>
+</span><span class='line'>  <span class="k">module</span> <span class="nn">Entities</span>
+</span><span class='line'>    <span class="k">module</span> <span class="nn">User</span> <span class="o">&lt;</span> <span class="ss">Grape</span><span class="p">:</span><span class="ss">:Entity</span>
+</span><span class='line'>      <span class="n">expose</span> <span class="ss">:id</span>
+</span><span class='line'>      <span class="n">expose</span> <span class="ss">:name</span>
+</span><span class='line'>      <span class="n">expose</span> <span class="ss">:email</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>api/users.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">namespace</span> <span class="ss">:users</span> <span class="k">do</span>  <span class="c1"># prefix routes with &#39;users/&#39;</span>
+</span><span class='line'>  <span class="n">desc</span> <span class="s2">&quot;get a user&quot;</span> <span class="c1"># describe your method for the documentation</span>
+</span><span class='line'>  <span class="n">params</span> <span class="k">do</span>
+</span><span class='line'>    <span class="n">requires</span> <span class="s2">&quot;user_id&quot;</span><span class="p">,</span> <span class="ss">desc</span><span class="p">:</span> <span class="s2">&quot;id of the user&quot;</span> <span class="c1"># requires a user_id to be passed</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>  <span class="n">get</span> <span class="s1">&#39;:user_id&#39;</span> <span class="k">do</span>  <span class="c1"># this will get the params[:user_id] from the url</span>
+</span><span class='line'>    <span class="n">user</span> <span class="o">=</span> <span class="no">User</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="n">params</span><span class="o">[</span><span class="ss">:user_id</span><span class="o">]</span><span class="p">)</span> <span class="o">||</span> <span class="n">error!</span><span class="p">(</span><span class="s1">&#39;user not found&#39;</span><span class="p">,</span><span class="mi">404</span><span class="p">)</span> <span class="c1"># find the user</span>
+</span><span class='line'>    <span class="n">present</span> <span class="n">user</span><span class="p">,</span> <span class="ss">with</span><span class="p">:</span> <span class="ss">AwesomeApp</span><span class="p">:</span><span class="ss">:Entities</span><span class="o">::</span><span class="no">User</span>  <span class="c1"># use grape-entity to present the model</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This setup will create a <code>/users/:id/</code> route that returns a user in a hash of the form <code>{id: 123, name: "John Doe", email: "foo@bar.com"}</code></p>
+
+<h2>2. With a bit of optimization</h2>
+
+<p>If your api is to grow more complex, the number of exposed attributes can quickly increase, and with it the size of the json hash the api sends. However you do not want all of the <code>User</code>&rsquo;s attributes to be return each time you call your route.</p>
+
+<p>To avoid unnecessary overload, you can build an option parser that allow the api-user to describe the type of response he&rsquo;s expecting.</p>
+
+<h4>Add conditional exposures to your entity</h4>
+
+<p>First we tell entity to expose attributes only when asked to:</p>
+
+<figure class='code'><figcaption><span>AwesomeApp/entities/user.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">AwesomeApp</span>
+</span><span class='line'>  <span class="k">module</span> <span class="nn">Entities</span>
+</span><span class='line'>    <span class="k">module</span> <span class="nn">User</span> <span class="o">&lt;</span> <span class="ss">Grape</span><span class="p">:</span><span class="ss">:Entity</span>
+</span><span class='line'>      <span class="n">expose</span> <span class="ss">:id</span> <span class="c1"># always expose the id</span>
+</span><span class='line'>      <span class="n">expose</span> <span class="ss">:name</span><span class="p">,</span> <span class="k">if</span><span class="p">:</span> <span class="nb">lambda</span><span class="p">{</span> <span class="o">|</span><span class="n">user</span><span class="p">,</span><span class="n">options</span><span class="o">|</span> <span class="n">options</span><span class="o">[</span><span class="ss">:entity_options</span><span class="o">][</span><span class="s2">&quot;user&quot;</span><span class="o">][</span><span class="ss">:name</span><span class="o">]</span><span class="p">}</span>   <span class="c1">#conditional exposure</span>
+</span><span class='line'>      <span class="n">expose</span> <span class="ss">:email</span><span class="p">,</span> <span class="k">if</span><span class="p">:</span> <span class="nb">lambda</span><span class="p">{</span> <span class="o">|</span><span class="n">user</span><span class="p">,</span><span class="n">options</span><span class="o">|</span> <span class="n">options</span><span class="o">[</span><span class="ss">:entity_options</span><span class="o">][</span><span class="s2">&quot;user&quot;</span><span class="o">][</span><span class="ss">:email</span><span class="o">]</span><span class="p">}</span> <span class="c1">#conditional exposure</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>create a helper to parse the options</h4>
+
+<p>Next, we create a helper that will read <code>params</code> to avoid tedious code duplication:</p>
+
+<figure class='code'><figcaption><span>AwesomeApp/Helpers/OptionsHelper</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># white-list params[:entities][&lt;some_model&gt;], and create empty hashes if needed:</span>
+</span><span class='line'><span class="k">def</span> <span class="nf">entity_options</span>
+</span><span class='line'>  <span class="p">{</span>
+</span><span class='line'>    <span class="s2">&quot;user&quot;</span> <span class="o">=&gt;</span> <span class="p">(</span><span class="n">params</span><span class="o">[</span><span class="ss">:entities</span><span class="o">][</span><span class="s2">&quot;user&quot;</span><span class="o">]</span> <span class="k">rescue</span> <span class="kp">nil</span><span class="p">)</span> <span class="o">||</span> <span class="p">{},</span>
+</span><span class='line'>    <span class="s2">&quot;post&quot;</span> <span class="o">=&gt;</span> <span class="p">(</span><span class="n">params</span><span class="o">[</span><span class="ss">:entities</span><span class="o">][</span><span class="s2">&quot;post&quot;</span><span class="o">]</span> <span class="k">rescue</span> <span class="kp">nil</span><span class="p">)</span> <span class="o">||</span> <span class="p">{},</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>pass the options hash to Grape::Entity</h4>
+
+<p>Finally, we need to connect everything in the api method description:</p>
+
+<figure class='code'><figcaption><span>api/users.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">helpers</span> <span class="ss">AwesomeApp</span><span class="p">:</span><span class="ss">:Helpers</span><span class="o">::</span><span class="no">OptionsHelper</span> <span class="c1">#include the helper</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">namespace</span> <span class="ss">:users</span> <span class="k">do</span>
+</span><span class='line'>    <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'>    <span class="n">present</span> <span class="n">user</span><span class="p">,</span> <span class="ss">with</span><span class="p">:</span> <span class="ss">AwesomeApp</span><span class="p">:</span><span class="ss">:Entities</span><span class="o">::</span><span class="no">User</span><span class="p">,</span> <span class="n">entity_options</span><span class="p">:</span> <span class="n">entity_options</span> <span class="c1">#simple call entity_options</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>Profit</h4>
+
+<p>And <em>Voila</em> !</p>
+
+<p>Now your api-users can efficiently call the routes to get the attributes they want:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">GET</span> <span class="s1">&#39;/users/:id&#39;</span><span class="p">,</span> <span class="p">{</span><span class="ss">users</span><span class="p">:</span> <span class="p">{</span><span class="nb">name</span><span class="p">:</span> <span class="kp">true</span><span class="p">}}</span>  <span class="c1"># =&gt; find a user and get his name only</span>
+</span><span class='line'><span class="no">GET</span> <span class="s1">&#39;/users/:id&#39;</span><span class="p">,</span> <span class="p">{</span><span class="ss">users</span><span class="p">:</span> <span class="p">{</span><span class="ss">email</span><span class="p">:</span> <span class="kp">true</span><span class="p">,</span> <span class="nb">name</span><span class="p">:</span> <span class="kp">true</span><span class="p">}}</span> <span class="c1"># =&gt; find a user and get both his name and email</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Bonus: it works with nested model exposures !</h3>
+
+<p>Note that this system supports nested models exposures. For instance, if you want to get a user, and a list of his post ids and titles, then the following will work like a charm:</p>
+
+<figure class='code'><figcaption><span>AwesomeApp/entities/user.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1">#AwesomeApp/entities/user.rb</span>
+</span><span class='line'><span class="k">module</span> <span class="nn">AwesomeApp</span>
+</span><span class='line'>  <span class="k">module</span> <span class="nn">Entities</span>
+</span><span class='line'>    <span class="k">module</span> <span class="nn">User</span> <span class="o">&lt;</span> <span class="ss">Grape</span><span class="p">:</span><span class="ss">:Entity</span>
+</span><span class='line'>      <span class="n">expose</span> <span class="ss">:id</span> <span class="c1"># always expose the id</span>
+</span><span class='line'>      <span class="n">expose</span> <span class="ss">:name</span><span class="p">,</span> <span class="k">if</span><span class="p">:</span> <span class="nb">lambda</span><span class="p">{</span> <span class="o">|</span><span class="n">user</span><span class="p">,</span><span class="n">options</span><span class="o">|</span> <span class="n">options</span><span class="o">[</span><span class="ss">:entity_options</span><span class="o">][</span><span class="s2">&quot;user&quot;</span><span class="o">][</span><span class="ss">:name</span><span class="o">]</span><span class="p">}</span>   <span class="c1">#conditional exposure</span>
+</span><span class='line'>      <span class="n">expose</span> <span class="ss">:email</span><span class="p">,</span> <span class="k">if</span><span class="p">:</span> <span class="nb">lambda</span><span class="p">{</span> <span class="o">|</span><span class="n">user</span><span class="p">,</span><span class="n">options</span><span class="o">|</span> <span class="n">options</span><span class="o">[</span><span class="ss">:entity_options</span><span class="o">][</span><span class="s2">&quot;user&quot;</span><span class="o">][</span><span class="ss">:email</span><span class="o">]</span><span class="p">}</span> <span class="c1">#conditional exposure</span>
+</span><span class='line'>      <span class="n">expose</span> <span class="ss">:posts</span><span class="p">,</span> <span class="ss">using</span><span class="p">:</span> <span class="ss">AwesomeApp</span><span class="p">:</span><span class="ss">:Entities</span><span class="o">::</span><span class="no">Post</span><span class="p">,</span> <span class="k">if</span><span class="p">:</span> <span class="nb">lambda</span><span class="p">{</span> <span class="o">|</span><span class="n">user</span><span class="p">,</span><span class="n">options</span><span class="o">|</span> <span class="n">options</span><span class="o">[</span><span class="ss">:entity_options</span><span class="o">][</span><span class="s2">&quot;user&quot;</span><span class="o">][</span><span class="ss">:posts</span><span class="o">]</span><span class="p">}</span> <span class="c1"># present user&#39;s posts</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">#AwesomeApp/Entities/post.rb</span>
+</span><span class='line'><span class="k">module</span> <span class="nn">AwesomeApp</span>
+</span><span class='line'>  <span class="k">module</span> <span class="nn">Entities</span>
+</span><span class='line'>    <span class="k">module</span> <span class="nn">Post</span> <span class="o">&lt;</span> <span class="ss">Grape</span><span class="p">:</span><span class="ss">:Entity</span>
+</span><span class='line'>      <span class="n">expose</span> <span class="ss">:id</span> <span class="c1"># always expose the id</span>
+</span><span class='line'>      <span class="n">expose</span> <span class="ss">:title</span><span class="p">,</span> <span class="k">if</span><span class="p">:</span> <span class="nb">lambda</span><span class="p">{</span> <span class="o">|</span><span class="n">post</span><span class="p">,</span><span class="n">options</span><span class="o">|</span> <span class="n">options</span><span class="o">[</span><span class="ss">:entity_options</span><span class="o">][</span><span class="s2">&quot;post&quot;</span><span class="o">][</span><span class="ss">:name</span><span class="o">]</span><span class="p">}</span>   <span class="c1">#conditional exposure</span>
+</span><span class='line'>      <span class="n">expose</span> <span class="ss">:content</span><span class="p">,</span> <span class="k">if</span><span class="p">:</span> <span class="nb">lambda</span><span class="p">{</span> <span class="o">|</span><span class="n">post</span><span class="p">,</span><span class="n">options</span><span class="o">|</span> <span class="n">options</span><span class="o">[</span><span class="ss">:entity_options</span><span class="o">][</span><span class="s2">&quot;post&quot;</span><span class="o">][</span><span class="ss">:email</span><span class="o">]</span><span class="p">}</span> <span class="c1">#conditional exposure</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Without changing anything to the api, you can now call</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">GET</span> <span class="s1">&#39;/users/123&#39;</span><span class="p">,</span> <span class="n">entity_options</span><span class="p">:</span> <span class="p">{</span> <span class="ss">user</span><span class="p">:</span> <span class="p">{</span><span class="nb">name</span><span class="p">:</span> <span class="kp">true</span><span class="p">,</span> <span class="ss">posts</span><span class="p">:</span> <span class="kp">true</span><span class="p">},</span> <span class="ss">post</span><span class="p">:</span> <span class="p">{</span><span class="ss">title</span><span class="p">:</span> <span class="kp">true</span><span class="p">}}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>To tell the api you want to include the user&rsquo;s post ids in the response. You will then get something that looks like</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="p">{</span>
+</span><span class='line'>  <span class="nb">id</span><span class="p">:</span> <span class="mi">123</span><span class="p">,</span>
+</span><span class='line'>  <span class="nb">name</span><span class="p">:</span> <span class="s2">&quot;John Doe&quot;</span><span class="p">,</span>
+</span><span class='line'>  <span class="ss">posts</span><span class="p">:</span> <span class="o">[</span>
+</span><span class='line'>    <span class="p">{</span><span class="nb">id</span><span class="p">:</span> <span class="mi">456</span><span class="p">,</span> <span class="ss">title</span><span class="p">:</span> <span class="s2">&quot;first post&quot;</span> <span class="p">},</span> <span class="c1">#post content is not asked for, therefore not sent</span>
+</span><span class='line'>    <span class="p">{</span><span class="nb">id</span><span class="p">:</span> <span class="mi">789</span><span class="p">,</span> <span class="ss">title</span><span class="p">:</span> <span class="s2">&quot;second post&quot;</span> <span class="p">},</span>
+</span><span class='line'>  <span class="o">]</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[how to migrate your django users to a new rails application]]></title>
+    <link href="http://aurelien-herve.com/blog/2014/05/23/how-to-migrate-your-django-users-to-a-new-rails-application/"/>
+    <updated>2014-05-23T10:59:28+02:00</updated>
+    <id>http://aurelien-herve.com/blog/2014/05/23/how-to-migrate-your-django-users-to-a-new-rails-application</id>
+    <content type="html"><![CDATA[<p>I recently had to migrate a users database from a django app to a brand new rails app. Is it possible to do that without having to request all our users to change their passwords ?</p>
+
+<!-- more -->
+
+
+<p>As you probably already know, plain-text passwords are not, and should <strong>never</strong> be stored in your database. When a user sign up, his/her password is <a href="http://en.wikipedia.org/wiki/Cryptographic_hash_function">hashed</a> before the resulting hash is saved to the database.
+When signin in, the user given password is hashed again, so both hashes (one is stored, the other is provided during the login process) can be checked against each other.</p>
+
+<p>If you&rsquo;re working with rails then you probably know about <a href="https://github.com/plataformatec/devise">Devise</a>: an awesome authentication solution for rails.</p>
+
+<p>Both django and rails/devise properly hash the users passwords. However the process is not the same, and a <em>django encrypted</em> password will not be recognized by the Devise engine as it is.</p>
+
+<h3>The pbkdf2-password-hasher gem</h3>
+
+<p>The app I had to deal with uses <a href="http://en.wikipedia.org/wiki/PBKDF2">pbkdf2</a> encryption algorithm (I&rsquo;m guessing it is a django standard but I have honestly no idea wether it is or not). The idea is then to teach devise how to check such an encrypted password.</p>
+
+<p>I had some trouble to find something satisfying, so I wrote a gem : <a href="https://github.com/aherve/pbkdf2-password-hasher">pbkdf2-password-hasher</a> to solve this issue. Basically, it implements in ruby the pbkdf2 encryption process, so we can easily check a password against a hashed string:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># hashed string from django app</span>
+</span><span class='line'><span class="n">hsh</span> <span class="o">=</span><span class="s1">&#39;pbkdf2_sha256$12000$PEnXGf9dviXF$2soDhu1WB8NSbFDm0w6NEe6OvslVXtiyf4VMiiy9rH0=&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># with right password:</span>
+</span><span class='line'><span class="no">Pbkdf2PasswordHasher</span><span class="o">.</span><span class="n">check_password</span><span class="p">(</span><span class="s1">&#39;bite&#39;</span><span class="p">,</span><span class="n">hsh</span><span class="p">)</span> <span class="c1">#=&gt; true</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">#with wrong password:</span>
+</span><span class='line'><span class="no">Pbkdf2PasswordHasher</span><span class="o">.</span><span class="n">check_password</span><span class="p">(</span><span class="s1">&#39;bitten&#39;</span><span class="p">,</span><span class="n">hsh</span><span class="p">)</span> <span class="c1">#=&gt; false</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Rasils/Devise integration</h3>
+
+<p>To use this gem in your rails application, simply call it from your Gemfile:</p>
+
+<figure class='code'><figcaption><span>Gemfile</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">gem</span> <span class="n">pbkdf2_password_hasher</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>and run <code>bundle install</code>. Now that the gem is installed, we simply need to tell devise how to use it. To do this, let&rsquo;s override the <code>valid_password?</code> method on our model.</p>
+
+<p>Let&rsquo;s say you created a <code>User</code> model, then simply add</p>
+
+<figure class='code'><figcaption><span>app/models/user.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">def</span> <span class="nf">valid_password?</span><span class="p">(</span><span class="n">pwd</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">begin</span>
+</span><span class='line'>    <span class="k">super</span><span class="p">(</span><span class="n">pwd</span><span class="p">)</span> <span class="c1"># try the standard way</span>
+</span><span class='line'>  <span class="k">rescue</span>
+</span><span class='line'>    <span class="no">Pbkdf2PasswordHasher</span><span class="o">.</span><span class="n">check_password</span><span class="p">(</span><span class="n">pwd</span><span class="p">,</span><span class="nb">self</span><span class="o">.</span><span class="n">encrypted_password</span><span class="p">)</span> <span class="c1"># if failed, then try the django&#39;s way</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>to your model&rsquo;s definition.</p>
+
+<p>And <em>voilà</em> ! Old users can login using their old passwords, whereas new users will still be able to create new accounts, that will be dealt with in the usual devise way.</p>
+
+<p>Isn&rsquo;t that nice ?</p>
+
+<p>Aurélien</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Having fun with functional programming in ruby]]></title>
+    <link href="http://aurelien-herve.com/blog/2014/02/27/some-cool-functional-programming-with-ruby/"/>
+    <updated>2014-02-27T21:51:46+01:00</updated>
+    <id>http://aurelien-herve.com/blog/2014/02/27/some-cool-functional-programming-with-ruby</id>
+    <content type="html"><![CDATA[<p>Today we&rsquo;re going to play around with functional programming. Yay !</p>
+
+<ul>
+<li><em>Ok, what&rsquo;s that exactly ?</em></li>
+</ul>
+
+
+<p>Wikipedia says it pretty much:</p>
+
+<blockquote><p>functional programming is a programming paradigm, a style of building the structure and elements of computer programs, that treats computation as the evaluation of mathematical functions and avoids state and mutable data.</p></blockquote>
+
+<ul>
+<li>Alright, now let&rsquo;s have some fun with functional programming style, and of course, let&rsquo;s do that with ruby :)</li>
+</ul>
+
+
+<p>In this post we&rsquo;re going to manipulate some (high order) functions, and build a derivative operator in a functional style.</p>
+
+<!-- more -->
+
+
+<h3>Level 1 : some basic functions</h3>
+
+<p>In ruby you can define a <em>lambda</em> operator, that is an anonymous function that reads exactly as a mathematician would define it. For instance,</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">square</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">x</span><span class="o">*</span><span class="n">x</span><span class="p">}</span> <span class="c1">#or its equivalent notation: square = lambda { |x| x*x }</span>
+</span><span class='line'><span class="n">plus_one</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">x</span><span class="o">+</span><span class="mi">1</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>defines a function that, when given an argument <code>x</code>, returns <code>x*x</code>.</p>
+
+<p>We can call it and see the result :</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">square</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="c1">#=&gt; 4</span>
+</span><span class='line'><span class="n">plus_one</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="c1">#=&gt; 3</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>More interestingly, higher order function can be defined, whose purpose is to manipulate other functions.</p>
+
+<p>For instance, let&rsquo;s define some basic operators <code>minus</code>,<code>mult</code>,<code>div</code> that can respectively add, subtract, multiply or divide functions altogether.</p>
+
+<p>Note that we want <code>new_function = minus.(f,g)</code> to return a function.
+Rather than describing how to subtract two values, we want to define what <code>f -g</code> means when both f and g are functions.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">minus</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'><span class="n">div</span>   <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">/</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'><span class="n">mult</span>  <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Does that works ? With the previously defined functions:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">my_fancy_func</span> <span class="o">=</span> <span class="n">minus</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">,</span><span class="n">plus_one</span><span class="p">)</span> <span class="c1"># defining a new function</span>
+</span><span class='line'><span class="n">my_fancy_func</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1">#=&gt; 5 = 3*3 - ( 3 + 1)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Sweet.</p>
+
+<ul>
+<li><em>Allright, but how is that really fancy?</em></li>
+</ul>
+
+
+<p>Well, let&rsquo;s take our trip to a next step:</p>
+
+<h3>Level 2 : I can haz derivative ?</h3>
+
+<p><em>Hey, I know an operator that works on functions : the derivative operator. How about we build one ?</em></p>
+
+<p>Alright. Let&rsquo;s build a derivative operator. That is, a function that takes a function as an argument, and return another function: its derivate.</p>
+
+<p>The derivative of a function at some point <em>x</em> can be obtained by evaluating
+<img src="http://aurelien-herve.com/images/derivative.gif" alt="derivative" />, <em>i.e.</em> the limit when epsilon &ndash;> 0 of a derivative scheme based on f at point x.</p>
+
+<p>Here&rsquo;s the plan :</p>
+
+<ul>
+<li>Define a limit operator</li>
+<li>define a derivative scheme</li>
+<li>define the derivative operator as the limit of the derivative scheme of a function</li>
+<li>Since we&rsquo;re at it, define any <em>nth derivative operator</em> : We should be able to derivate n times any function.</li>
+<li>Profit and use it on <em>any function</em></li>
+</ul>
+
+
+<p>For the sake of clarity, let&rsquo;s begin with a simplified version, and assume that <code>epsilon = 1e-3</code> is low enough to approximate the limit of our derivative scheme.</p>
+
+<p>Once we&rsquo;re more comfortable with the concepts, we&rsquo;ll get rid of this assumption and implement a true derivative operator.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">derivative</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span> <span class="p">{</span> <span class="c1"># we take a function as argument</span>
+</span><span class='line'>  <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="c1"># the function takes a real x as argument</span>
+</span><span class='line'>    <span class="p">(</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">3</span><span class="p">)</span> <span class="o">-</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">3</span><span class="p">)</span> <span class="p">)</span> <span class="o">/</span> <span class="p">(</span> <span class="mi">2</span><span class="n">e</span><span class="o">-</span><span class="mi">3</span> <span class="p">)</span> <span class="c1"># apply the scheme</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Let&#39;s try:</span>
+</span><span class='line'><span class="n">derivative_of_square</span> <span class="o">=</span> <span class="n">derivative</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">)</span>  <span class="o">=&gt;</span> <span class="c1">#&lt;Proc:0x00000001b7c270@(irb):24 (lambda)&gt; . Yay, a new function ! </span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">#Can we use it ? </span>
+</span><span class='line'><span class="n">square</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># =&gt; 9</span>
+</span><span class='line'><span class="n">derivative_of_square</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1">#  =&gt; 5.999999999999339 ~ 2*3. Cool !</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><em>Sooo&hellip; can I derivate twice ?</em></p>
+
+<p>Yup. Simply get the derivative of the derivative :</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">second_derivative_of_square</span> <span class="o">=</span> <span class="n">derivative</span><span class="o">.</span><span class="p">(</span> <span class="n">derivative</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">)</span> <span class="p">)</span> <span class="c1"># this should be a constant function that return 2</span>
+</span><span class='line'><span class="n">second_derivative_of_square</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="c1">#=&gt; 1.999999999946489</span>
+</span><span class='line'><span class="n">second_derivative_of_square</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1">#=&gt; 2.000000000279556</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><em>Sooooooo&hellip; can I derivate n times ?</em></p>
+
+<p>Yup. Although we don&rsquo;t want to create thousands of <code>third_derivative</code>,<code>forth_derivative</code>&hellip;etc, right ?</p>
+
+<p>Let&rsquo;s go one order higher and define the <em>nth derivative operator</em></p>
+
+<p>Since we can derivate a function, and we want to do it n times, what we miss is simply a <code>n-times combinator</code>. For example, <code>n_times.(f).(2)</code> should return <code>x -&gt; f(f(x))</code> regardless of what <code>f</code> and <code>x</code> are.</p>
+
+<p>Shall we do it recursively ?</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">n_times</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">n</span><span class="p">,</span><span class="n">f</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">n</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">?</span> <span class="n">f</span> <span class="p">:</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">n_times</span><span class="o">.</span><span class="p">(</span><span class="n">n</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">))}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><strong>Explanation</strong> :</p>
+
+<ul>
+<li>if <em>n = 1</em> then we want f. so return f. So far so good, <code>n_times(1,f) = f</code></li>
+<li>If <em>n = 2</em>, then we want f(f) = f( n_times.(1,f) )</li>
+<li>If <em>n = 3</em>, then we want f(f(f)) = f( n_times.(2,f) )</li>
+</ul>
+
+
+<p>&hellip;etc. Get it ?</p>
+
+<p><em>Wait&hellip; that&rsquo;s all ? Where&rsquo;s my nth derivative ?</em></p>
+
+<p>Now it&rsquo;s quite easy to derivate n times :</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">nth_derivator</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">n</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">n_times</span><span class="o">.</span><span class="p">(</span><span class="n">n</span><span class="p">,</span><span class="n">derivate</span><span class="p">)</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This <code>nth_derivator</code> will take <code>n</code> as an argument, and derivate n times whatever we decide to pass to it.</p>
+
+<p>Let&rsquo;s play with it!</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">derivative_of_square</span> <span class="o">=</span> <span class="n">nth_derivator</span><span class="o">.</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">)</span> <span class="c1">#derivate one time</span>
+</span><span class='line'><span class="n">second_derivative_of_square</span> <span class="o">=</span> <span class="n">nth_derivator</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">)</span> <span class="c1">#derivate two times</span>
+</span><span class='line'><span class="n">third_derivative_of_square</span> <span class="o">=</span> <span class="n">nth_derivator</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">)</span> <span class="c1">#derivate three times</span>
+</span><span class='line'>
+</span><span class='line'><span class="nb">p</span> <span class="n">derivative_of_square</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># =&gt; 5.999999999999339</span>
+</span><span class='line'><span class="nb">p</span> <span class="n">second_derivative_of_square</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># =&gt; 2.000000000279556</span>
+</span><span class='line'><span class="nb">p</span> <span class="n">third_derivative_of_square</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># =&gt; 0.0</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><em>That&rsquo;s cool ! but those are approximations, right ? we never actually calculated the limit</em></p>
+
+<p>Yet.</p>
+
+<h3>Level 3 : More functional, and a true limit operator</h3>
+
+<p>Now that we have a better feel for it (have we?), let&rsquo;s refactor our derivative operator so that it is <em>actually</em> defined as a limit. And hey, let&rsquo;s parametrize the precision that we want since we&rsquo;re at it.</p>
+
+<p><img class="right" src="http://aurelien-herve.com/images/party_over.gif" title="" ></p>
+
+<p>First, let&rsquo;s write a bunch of tools that are going to be useful:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">minus</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span> <span class="c1"># f - g</span>
+</span><span class='line'><span class="n">div</span>   <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">/</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span> <span class="c1"># f / g</span>
+</span><span class='line'><span class="n">mult</span>  <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span> <span class="c1"># f * g</span>
+</span><span class='line'><span class="n">norm</span>  <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span>   <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">abs</span><span class="p">}}</span> <span class="c1"># absolute value</span>
+</span><span class='line'><span class="n">const</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">const</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">const</span><span class="p">}</span> <span class="p">}</span> <span class="c1"># That&#39;s right, the constant function !</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># You should recognize these:</span>
+</span><span class='line'><span class="n">plus_eps</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">eps</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">f</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="n">eps</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'><span class="n">min_eps</span>  <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">eps</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">f</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="n">eps</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># is f &lt; g ? </span>
+</span><span class='line'><span class="n">inf</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now the limit function. Here we are going to define a function, that actually implement the following (naive) algorithm:</p>
+
+<ul>
+<li>variables : a function <code>f</code>, a starting epsilon <code>eps</code>, and a threshold <code>tres</code></li>
+<li><ol>
+<li>Evaluate y = ||f(x + epsilon/2) &ndash; f(x + epsilon) ||</li>
+</ol>
+</li>
+<li><ol>
+<li>if y &lt; tres, then we are converged, and lowering epsilon wouldn&rsquo;t change the result much. Return f(x+epsilon).</li>
+</ol>
+</li>
+<li><ol>
+<li>else, reduce epsilon and try again (i.e. go to 1.)</li>
+</ol>
+</li>
+</ul>
+
+
+<p>Obviously, this algorithm is quite simple, and will only work when dealing with smooth, continuous, and gracious functions.</p>
+
+<p>Ready ?</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">lim</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">eps</span><span class="p">,</span><span class="n">tres</span> <span class="p">{</span>
+</span><span class='line'>  <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">inf</span><span class="o">.</span><span class="p">(</span>
+</span><span class='line'>      <span class="n">norm</span><span class="o">.</span><span class="p">(</span>
+</span><span class='line'>        <span class="n">minus</span><span class="o">.</span><span class="p">(</span>
+</span><span class='line'>          <span class="n">plus_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="o">/</span><span class="mi">2</span><span class="o">.</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">),</span>
+</span><span class='line'>          <span class="n">plus_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+</span><span class='line'>        <span class="p">)</span>
+</span><span class='line'>      <span class="p">),</span> <span class="n">const</span><span class="o">.</span><span class="p">(</span><span class="n">tres</span><span class="p">)</span> <span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">?</span> <span class="n">plus_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">:</span> <span class="n">lim</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="n">eps</span><span class="o">/</span><span class="mi">2</span><span class="o">.</span><span class="mi">0</span><span class="p">,</span><span class="n">tres</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Does it even work ?</span>
+</span><span class='line'><span class="n">lim</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="c1">#=&gt; 5.0625 wut ?</span>
+</span><span class='line'><span class="n">lim</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="c1">#=&gt; 4.0156402587890625 Ah. Better</span>
+</span><span class='line'><span class="n">lim</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">16</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="c1">#=&gt; 4.0 How nice !</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now we&rsquo;re getting close ! Let&rsquo;s refactor our derivative operator in a more appropriate way and get our final derivative operator:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># derivative_scheme.(f).(x) shall be a function of epsilon</span>
+</span><span class='line'><span class="n">derivative_sheme</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span> <span class="p">{</span>
+</span><span class='line'>  <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span>
+</span><span class='line'>    <span class="o">-&gt;</span> <span class="n">eps</span> <span class="p">{</span>
+</span><span class='line'>      <span class="n">div</span><span class="o">.</span><span class="p">(</span> <span class="n">minus</span><span class="o">.</span><span class="p">(</span><span class="n">plus_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">),</span> <span class="n">min_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="p">),</span> <span class="n">mult</span><span class="o">.</span><span class="p">(</span><span class="n">const</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">const</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)))</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># And the derivative operator: </span>
+</span><span class='line'><span class="c1"># Let&#39;s fix the treshold at tres = 1e-16</span>
+</span><span class='line'><span class="n">derivate</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span> <span class="p">{</span>
+</span><span class='line'>  <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">lim</span><span class="o">.</span><span class="p">(</span><span class="n">derivative_sheme</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">),</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">16</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="c1"># limit of the derivative scheme of f(x), taken at epsilon = 0</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Isn&#39;t that fancy ? We juste define the derivative operator</span>
+</span><span class='line'><span class="c1"># exactly as the limit of (f(x + e) - f(x - e))/(2e) when epsilon -&gt; 0</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Summary</h3>
+
+<p>Here&rsquo;s a full code of what we implemented <a href="http://aurelien-herve.com/assets/aherves_blog_ruby_functional.rb">(download it)</a></p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1">#!/usr/bin/env ruby</span>
+</span><span class='line'><span class="c1"># Our fancy function. Could be exactly anything</span>
+</span><span class='line'><span class="n">square</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">x</span><span class="o">*</span><span class="n">x</span><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># some tools</span>
+</span><span class='line'><span class="n">minus</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'><span class="n">div</span>   <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">/</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'><span class="n">mult</span>  <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'><span class="n">norm</span>  <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span>   <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">abs</span><span class="p">}}</span>
+</span><span class='line'><span class="n">const</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">const</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">const</span><span class="p">}</span> <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">plus_eps</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">eps</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">f</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="n">eps</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'><span class="n">min_eps</span>  <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">eps</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">f</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="n">eps</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">inf</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># The limit operator</span>
+</span><span class='line'><span class="n">lim</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">eps</span><span class="p">,</span><span class="n">prec</span> <span class="p">{</span>
+</span><span class='line'>   <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">inf</span><span class="o">.</span><span class="p">(</span><span class="n">norm</span><span class="o">.</span><span class="p">(</span><span class="n">minus</span><span class="o">.</span><span class="p">(</span><span class="n">plus_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="o">/</span><span class="mi">2</span><span class="o">.</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">),</span> <span class="n">plus_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">)))</span> <span class="p">,</span> <span class="n">const</span><span class="o">.</span><span class="p">(</span><span class="n">prec</span><span class="p">)</span> <span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">?</span> <span class="n">plus_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">:</span> <span class="n">lim</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="n">eps</span><span class="o">/</span><span class="mi">2</span><span class="o">.</span><span class="mi">0</span><span class="p">,</span><span class="n">prec</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># The derivative scheme</span>
+</span><span class='line'><span class="n">derivative_sheme</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span> <span class="p">{</span>
+</span><span class='line'>  <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span>
+</span><span class='line'>  <span class="o">-&gt;</span> <span class="n">eps</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">div</span><span class="o">.</span><span class="p">(</span> <span class="n">minus</span><span class="o">.</span><span class="p">(</span><span class="n">plus_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">),</span> <span class="n">min_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="p">),</span> <span class="n">mult</span><span class="o">.</span><span class="p">(</span><span class="n">const</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">const</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)))</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># The derivative operator at precision 1e-16 is the limit of the derivative scheme</span>
+</span><span class='line'><span class="n">derivate</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">{</span>
+</span><span class='line'>  <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">lim</span><span class="o">.</span><span class="p">(</span><span class="n">derivative_sheme</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">),</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">16</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># call any function n times</span>
+</span><span class='line'><span class="n">n_times</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">n</span><span class="p">,</span><span class="n">f</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">n</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">?</span> <span class="n">f</span> <span class="p">:</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">n_times</span><span class="o">.</span><span class="p">(</span><span class="n">n</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">))}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># an nth derivator is a derivator called n times:</span>
+</span><span class='line'><span class="n">nth_derivator</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">n</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">n_times</span><span class="o">.</span><span class="p">(</span><span class="n">n</span><span class="p">,</span><span class="n">derivate</span><span class="p">)</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'><span class="nb">p</span> <span class="n">nth_derivator</span><span class="o">.</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># =&gt; 6 =  2*(3)</span>
+</span><span class='line'><span class="nb">p</span> <span class="n">nth_derivator</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># =&gt; 2 =  constant(2)</span>
+</span><span class='line'><span class="nb">p</span> <span class="n">nth_derivator</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># =&gt; 0 = constant(0)</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">logarithm</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="no">Math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span>
+</span><span class='line'><span class="nb">p</span> <span class="n">nth_derivator</span><span class="o">.</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">logarithm</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1">#=&gt; 0.3333333333430346 ~ 1/3 I can derivate whatever I want !</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Well that&rsquo;s all, hope you enjoyed reading this (at least) as much as I enjoyed writing it. Feel free to drop some comments, suggest anything, c orrect some code (or my english ) :)</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[How to create a gem structure with rspec and code coverage]]></title>
+    <link href="http://aurelien-herve.com/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/"/>
+    <updated>2014-02-15T21:59:36+01:00</updated>
+    <id>http://aurelien-herve.com/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage</id>
+    <content type="html"><![CDATA[<h3>tl;dr</h3>
+
+<p>This is a step-by-step tutorial for creating a gem structure, along with some unit tests and code coverage.</p>
+
+<!-- more -->
+
+
+<h2>1. Bundle: create the structure</h2>
+
+<ul>
+<li>Create the directories using bundler:</li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ bundle gem my_fancy_gem
+</span><span class='line'>create  my_fancy_gem/Gemfile
+</span><span class='line'>create  my_fancy_gem/Rakefile
+</span><span class='line'>create  my_fancy_gem/LICENSE.txt
+</span><span class='line'>create  my_fancy_gem/README.md
+</span><span class='line'>create  my_fancy_gem/.gitignore
+</span><span class='line'>create  my_fancy_gem/my_fancy_gem.gemspec
+</span><span class='line'>create  my_fancy_gem/lib/my_fancy_gem.rb
+</span><span class='line'>create  my_fancy_gem/lib/my_fancy_gem/version.rb
+</span><span class='line'>Initializing git repo in &lt;wherever you are&gt;/my_fancy_gem</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>fill the gem description in <code>my_fancy_gem.gemspec</code></li>
+</ul>
+
+
+<h2>2. Configure rspec</h2>
+
+<ul>
+<li>add rspec to the dependencies in <code>my_fancy_gem.gemspec</code>:</li>
+</ul>
+
+
+<figure class='code'><figcaption><span>my_fancy_gem.gemspec</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'>  <span class="n">spec</span><span class="o">.</span><span class="n">add_development_dependency</span> <span class="s2">&quot;rake&quot;</span>
+</span><span class='line'>  <span class="n">spec</span><span class="o">.</span><span class="n">add_development_dependency</span> <span class="s2">&quot;rspec&quot;</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>and make sure you install it:</p>
+
+<pre><code>$ bundle
+</code></pre>
+
+<ul>
+<li>create <code>spec/spec_helper.rb</code> file:</li>
+</ul>
+
+
+<figure class='code'><figcaption><span>spec/spec_helper.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;rspec&#39;</span>
+</span><span class='line'><span class="nb">require</span> <span class="s1">&#39;my_fancy_gem&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>I like it better with colors. In <code>.rspec</code>:</li>
+</ul>
+
+
+<figure class='code'><figcaption><span>.rspec</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">--</span><span class="n">color</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Now let&rsquo;s create some method and test it</h3>
+
+<p>Let&rsquo;s write a hello world method with TDD</p>
+
+<ul>
+<li>in <code>spec/my_fancy_gem_spec.rb</code></li>
+</ul>
+
+
+<figure class='code'><figcaption><span>spec/my_fancy_gem_spec.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;spec_helper&#39;</span>
+</span><span class='line'><span class="n">describe</span> <span class="no">SmartadCollector</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">it</span> <span class="s2">&quot;should greet&quot;</span> <span class="k">do</span>
+</span><span class='line'>    <span class="ss">SmartadCollector</span><span class="p">:</span><span class="ss">:greet</span><span class="o">.</span><span class="n">should</span> <span class="o">==</span> <span class="s2">&quot;Hello, world!&quot;</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>Proudly watch the test failing by running <code>rspec</code></li>
+<li>Now let&rsquo;s write the actual method: <code>lib/my_fancy_gem_spec.rb</code></li>
+</ul>
+
+
+<figure class='code'><figcaption><span>lib/my_fancy_gem.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s2">&quot;my_fancy_gem/version&quot;</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">module</span> <span class="nn">MyFancyGem</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nc">self</span><span class="o">.</span><span class="nf">greet</span>
+</span><span class='line'>    <span class="s2">&quot;Hello, world!&quot;</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>and (even more) proudly watch the test pass:</p>
+
+<pre><code>$ rspec #=&gt; 1 example, 0 failures
+</code></pre>
+
+<h2>3. Adding code coverage tools</h2>
+
+<p><a href="https://github.com/colszowka/simplecov">SimpleCov</a> to get code coverage:</p>
+
+<ul>
+<li>add <code>spec.add_development_dependency "simplecov"</code> in <code>my_fancy_gem_spec.gemspec</code>.</li>
+<li><p><code>$ bundle install</code> to install the simple cov gem</p></li>
+<li><p>create a <code>.simplecov</code> file:</p></li>
+</ul>
+
+
+<figure class='code'><figcaption><span>.simplecov</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="no">SimpleCov</span><span class="o">.</span><span class="n">start</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">add_group</span> <span class="s2">&quot;lib&quot;</span><span class="p">,</span> <span class="s2">&quot;lib&quot;</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>add it to rspec: <code>spec/spec_helper.rb</code>:</li>
+</ul>
+
+
+<figure class='code'><figcaption><span>spec/spec_helper.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;rspec&#39;</span>
+</span><span class='line'><span class="nb">require</span> <span class="s1">&#39;simplecov&#39;</span>
+</span><span class='line'><span class="nb">require</span> <span class="s1">&#39;my_fancy_gem_spec&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Please note that the <code>require 'simplecov'</code> has to be added before <code>require 'my_fancy_gem_spec'</code>.</p>
+
+<p>Now running <code>$ rspec</code> will output a report on code coverage, as well as a <code>coverage</code> directory. You can browse <code>coverage/index.html</code> to view the detailed report.</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[We should fix the physics engine]]></title>
+    <link href="http://aurelien-herve.com/blog/2014/02/13/we-should-fix-the-physics-engine/"/>
+    <updated>2014-02-13T16:54:23+01:00</updated>
+    <id>http://aurelien-herve.com/blog/2014/02/13/we-should-fix-the-physics-engine</id>
+    <content type="html"><![CDATA[<p>I think the Universe&rsquo;s laws of physics are now way outdated. Let&rsquo;s suggest a patch for this.</p>
+
+<p><code>Universe::Physics</code> v 2.1.0 release notes</p>
+
+<ul>
+<li><strong>Quantum tunnel glitch</strong> : fixed a bug that randomly caused particles to go through well potentials although they lacked the energy to do it.</li>
+<li><strong>High velocity engine improved</strong> : heavy computations at high speed caused local space-time to bend. The engine is now better and the so-called relativistic effects are now minimized.</li>
+<li><strong>Improved data structure (Heisenberg&rsquo;s bug)</strong>: Variables are stored with more efficiency. It is now possible to know both where a particle is, and at what speed it travels.</li>
+</ul>
+
+
+<!-- more -->
+
+
+<ul>
+<li><strong>Entropy leak</strong>: Some memory leaks that caused entropy to constantly grow without limit have been fixed.</li>
+<li><strong>Teleportation</strong>: Owing to some pointer error, changing the spin of some particle would instantly affect its twin particle in some setups. This is no longer the case.</li>
+<li><strong>Planck&rsquo;s constant</strong>: A better meshing takes place, and the Planck&rsquo;s constant has been drastically reduced so the universe seems more &ldquo;continuous&rdquo;.</li>
+<li><strong>Electrons</strong>: For the sake of simplicity, electrons now actually rotate around the atoms.</li>
+<li><strong>Pi number</strong>: It seems the ratio between a circle diameter and its circumference has attracted a lot of attention during the last two millenniums. For more convenience, it has been set to an exact &mdash;rational&mdash; value of <code>pi= 3.14</code>.</li>
+</ul>
+
+
+<p>Any further suggestions will be welcomed !</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[hello world]]></title>
+    <link href="http://aurelien-herve.com/blog/2014/02/13/hello-world/"/>
+    <updated>2014-02-13T16:45:43+01:00</updated>
+    <id>http://aurelien-herve.com/blog/2014/02/13/hello-world</id>
+    <content type="html"><![CDATA[<p>hello, world !</p>
+]]></content>
+  </entry>
+  
+</feed>
