@@ -4,7 +4,7 @@
   <title><![CDATA[Category: big data | Aurélien Hervé]]></title>
   <link href="http://aurelien-herve.com/blog/categories/big-data/atom.xml" rel="self"/>
   <link href="http://aurelien-herve.com/"/>
-  <updated>2015-01-14T18:24:15+01:00</updated>
+  <updated>2015-01-14T18:47:11+01:00</updated>
   <id>http://aurelien-herve.com/</id>
   <author>
     <name><![CDATA[A. Hervé]]></name>
@@ -27,6 +27,9 @@
 <li>The same code can be run locally and remotely, so I can debug or process any amount of data without changing anything</li>
 <li>I should be able to use any language I like, and this does not especially have to be java. In this example I&rsquo;ll be using ruby because it&rsquo;s awesome. Simply translate this tuto to python, perl, php or anything you want, it&rsquo;ll still work.</li>
 </ul>
+
+
+<!-- more -->
 
 
 <h2>1. Let&rsquo;s play a game</h2>
