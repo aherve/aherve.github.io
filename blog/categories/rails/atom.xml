@@ -4,7 +4,7 @@
   <title><![CDATA[Category: rails | Aurélien Hervé]]></title>
   <link href="http://aurelien-herve.com/blog/categories/rails/atom.xml" rel="self"/>
   <link href="http://aurelien-herve.com/"/>
-  <updated>2014-10-15T19:51:48+02:00</updated>
+  <updated>2015-01-14T18:24:15+01:00</updated>
   <id>http://aurelien-herve.com/</id>
   <author>
     <name><![CDATA[A. Hervé]]></name>
@@ -51,7 +51,7 @@ When signin in, the user given password is hashed again, so both hashes (one is 
 <p>Pbkdf2PasswordHasher.check_password(&lsquo;bitten&rsquo;,hsh) #=> false
 ```</p>
 
-<h3>Rails/Devise integration</h3>
+<h3>Rasils/Devise integration</h3>
 
 <p>To use this gem in your rails application, simply call it from your Gemfile:</p>
 
