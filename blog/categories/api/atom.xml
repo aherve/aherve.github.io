@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: api | Aurélien Hervé]]></title>
+  <link href="http://aurelien-herve.com/blog/categories/api/atom.xml" rel="self"/>
+  <link href="http://aurelien-herve.com/"/>
+  <updated>2014-10-15T19:51:48+02:00</updated>
+  <id>http://aurelien-herve.com/</id>
+  <author>
+    <name><![CDATA[A. Hervé]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Building an advanced api option parser for grape]]></title>
+    <link href="http://aurelien-herve.com/blog/2014/10/14/advanced-api-option-parser-for-grape/"/>
+    <updated>2014-10-14T09:52:35+02:00</updated>
+    <id>http://aurelien-herve.com/blog/2014/10/14/advanced-api-option-parser-for-grape</id>
+    <content type="html"><![CDATA[<p>When building an elaborated api, you might want your users to pass parameters in order to describe exactly what response they expect from the api.</p>
+
+<p>For instance, it is useful to be able to do something as</p>
+
+<p><code>ruby
+GET '/users/:id', {users: {name: true}}  # =&gt; find a user and get his name only
+GET '/users/:id', {users: {email: true, name: true}} # =&gt; find a user and get both his name and email
+GET '/users/:id', {users: {email: true, name: true, posts: true}, post: {title: true}} # =&gt; find a user and get his name, his email, and all his posts titles
+</code>
+instead of presenting all of the model&rsquo;s attributes at each api call.</p>
+
+<!-- more -->
+
+
+<h2>1. Basic grape/entity usage</h2>
+
+<p>At <a href="http://shapter.com">Shapter</a> we use the awesome <a href="https://github.com/intridea/grape">Grape</a> api framework, along with <a href="https://github.com/intridea/grape-entity">grape-entity</a>.</p>
+
+<p>For instance, let&rsquo;s say we wan to build a route that finds and present a user:</p>
+
+<p>```ruby AwesomeApp/entities/user.rb
+module AwesomeApp
+  module Entities</p>
+
+<pre><code>module User &lt; Grape::Entity
+  expose :id
+  expose :name
+  expose :email
+end
+</code></pre>
+
+<p>  end
+end
+```</p>
+
+<p>```ruby api/users.rb
+namespace :users do  # prefix routes with &lsquo;users/&rsquo;
+  desc &ldquo;get a user&rdquo; # describe your method for the documentation
+  params do</p>
+
+<pre><code>requires "user_id", desc: "id of the user" # requires a user_id to be passed
+</code></pre>
+
+<p>  end
+  get &lsquo;:user_id&rsquo; do  # this will get the params[:user_id] from the url</p>
+
+<pre><code>user = User.find(params[:user_id]) || error!('user not found',404) # find the user
+present user, with: AwesomeApp::Entities::User  # use grape-entity to present the model
+</code></pre>
+
+<p>  end
+end
+```</p>
+
+<p>This setup will create a <code>/users/:id/</code> route that returns a user in a hash of the form <code>{id: 123, name: "John Doe", email: "foo@bar.com"}</code></p>
+
+<h2>2. With a bit of optimization</h2>
+
+<p>If your api is to grow more complex, the number of exposed attributes can quickly increase, and with it the size of the json hash the api sends. However you do not want all of the <code>User</code>&rsquo;s attributes to be return each time you call your route.</p>
+
+<p>To avoid unnecessary overload, you can build an option parser that allow the api-user to describe the type of response he&rsquo;s expecting.</p>
+
+<h4>Add conditional exposures to your entity</h4>
+
+<p>First we tell entity to expose attributes only when asked to:</p>
+
+<p>```ruby AwesomeApp/entities/user.rb
+module AwesomeApp
+  module Entities</p>
+
+<pre><code>module User &lt; Grape::Entity
+  expose :id # always expose the id
+  expose :name, if: lambda{ |user,options| options[:entity_options]["user"][:name]}   #conditional exposure
+  expose :email, if: lambda{ |user,options| options[:entity_options]["user"][:email]} #conditional exposure
+end
+</code></pre>
+
+<p>  end
+end
+```</p>
+
+<h4>create a helper to parse the options</h4>
+
+<p>Next, we create a helper that will read <code>params</code> to avoid tedious code duplication:</p>
+
+<p>```ruby AwesomeApp/Helpers/OptionsHelper</p>
+
+<h1>white-list params[:entities][&lt;some_model>], and create empty hashes if needed:</h1>
+
+<p>def entity_options
+  {</p>
+
+<pre><code>"user" =&gt; (params[:entities]["user"] rescue nil) || {},
+"post" =&gt; (params[:entities]["post"] rescue nil) || {},
+</code></pre>
+
+<p>  }
+end
+```</p>
+
+<h4>pass the options hash to Grape::Entity</h4>
+
+<p>Finally, we need to connect everything in the api method description:</p>
+
+<p>```ruby api/users.rb
+helpers AwesomeApp::Helpers::OptionsHelper #include the helper</p>
+
+<p>namespace :users do</p>
+
+<pre><code>...
+present user, with: AwesomeApp::Entities::User, entity_options: entity_options #simple call entity_options
+</code></pre>
+
+<p>end
+```</p>
+
+<h4>Profit</h4>
+
+<p>And <em>Voila</em> !</p>
+
+<p>Now your api-users can efficiently call the routes to get the attributes they want:
+<code>ruby
+GET '/users/:id', {users: {name: true}}  # =&gt; find a user and get his name only
+GET '/users/:id', {users: {email: true, name: true}} # =&gt; find a user and get both his name and email
+</code></p>
+
+<h3>Bonus: it works with nested model exposures !</h3>
+
+<p>Note that this system supports nested models exposures. For instance, if you want to get a user, and a list of his post ids and titles, then the following will work like a charm:</p>
+
+<p>```ruby AwesomeApp/entities/user.rb</p>
+
+<h1>AwesomeApp/entities/user.rb</h1>
+
+<p>module AwesomeApp
+  module Entities</p>
+
+<pre><code>module User &lt; Grape::Entity
+  expose :id # always expose the id
+  expose :name, if: lambda{ |user,options| options[:entity_options]["user"][:name]}   #conditional exposure
+  expose :email, if: lambda{ |user,options| options[:entity_options]["user"][:email]} #conditional exposure
+  expose :posts, using: AwesomeApp::Entities::Post, if: lambda{ |user,options| options[:entity_options]["user"][:posts]} # present user's posts
+end
+</code></pre>
+
+<p>  end
+end</p>
+
+<h1>AwesomeApp/Entities/post.rb</h1>
+
+<p>module AwesomeApp
+  module Entities</p>
+
+<pre><code>module Post &lt; Grape::Entity
+  expose :id # always expose the id
+  expose :title, if: lambda{ |post,options| options[:entity_options]["post"][:name]}   #conditional exposure
+  expose :content, if: lambda{ |post,options| options[:entity_options]["post"][:email]} #conditional exposure
+end
+</code></pre>
+
+<p>  end
+end
+```</p>
+
+<p>Without changing anything to the api, you can now call
+<code>ruby
+GET '/users/123', entity_options: { user: {name: true, posts: true}, post: {title: true}}
+</code>
+To tell the api you want to include the user&rsquo;s post ids in the response. You will then get something that looks like
+```
+{
+  id: 123,
+  name: &ldquo;John Doe&rdquo;,
+  posts: [</p>
+
+<pre><code>{id: 456, title: "first post" }, #post content is not asked for, therefore not sent
+{id: 789, title: "second post" },
+</code></pre>
+
+<p>  ]
+}
+```</p>
+]]></content>
+  </entry>
+  
+</feed>
