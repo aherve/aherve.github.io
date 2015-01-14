@@ -1,0 +1,786 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Having fun with functional programming in ruby - Aurélien Hervé</title>
+  <meta name="author" content="A. Hervé">
+
+  
+  <meta name="description" content="">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://aurelien-herve.com/blog/2014/02/27/some-cool-functional-programming-with-ruby">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/bootstrap/bootstrap.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/bootstrap/responsive.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/syntax/syntax.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <style type="text/css">
+    body {
+      padding-bottom: 40px;
+    }
+    h1 {
+      margin-bottom: 15px;
+    }
+    img {
+      max-width: 100%;
+    }
+    .sharing, .meta, .pager {
+      margin: 20px 0px 20px 0px;
+    }
+    .page-footer p {
+      text-align: center;
+    }
+  </style>
+  <script src="/javascripts/libs/jquery.js"></script>
+  <script src="/javascripts/libs/modernizr-2.0.js"></script>
+  <script src="/javascripts/libs/bootstrap.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Aurélien Hervé" type="application/atom+xml">
+  
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-28822787-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://' : 'http://') + 'stats.g.doubleclick.net/dc.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar navbar-inverse">
+  <div class="navbar-inner">
+    <div class="container">
+      <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </a>
+
+      <a class="brand" href="/">Aurélien Hervé</a>
+
+      <div class="nav-collapse">
+        <ul class="nav">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/publications">Conferences & publications</a></li>
+  <li><a href="#" onclick="alert('feel free to drop me a mail ! \n mail @ aurelien-herve.com');">contact</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+
+
+
+        <ul class="nav pull-right" data-subscription="rss">
+          <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+          
+        </ul>
+
+        
+          <form class="pull-right navbar-search" action="http://google.com/search" method="get">
+            <fieldset role="search">
+              <input type="hidden" name="q" value="site:aurelien-herve.com" />
+              <input class="search-query" type="text" name="q" results="0" placeholder="Search"/>
+            </fieldset>
+          </form>
+        
+      </div>
+    </div>
+  </div>
+</div>
+</nav>
+  <div class="container">
+    <div class="row-fluid">
+      
+<article class="hentry span9" role="article">
+
+  
+  <header class="page-header">
+    
+      <h1 class="entry-title">Having Fun With Functional Programming in Ruby</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-02-27T21:51:46+01:00" pubdate data-updated="true">Feb 27<span>th</span>, 2014</time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>Today we&rsquo;re going to play around with functional programming. Yay !</p>
+
+<ul>
+<li><em>Ok, what&rsquo;s that exactly ?</em></li>
+</ul>
+
+
+<p>Wikipedia says it pretty much:</p>
+
+<blockquote><p>functional programming is a programming paradigm, a style of building the structure and elements of computer programs, that treats computation as the evaluation of mathematical functions and avoids state and mutable data.</p></blockquote>
+
+<ul>
+<li>Alright, now let&rsquo;s have some fun with functional programming style, and of course, let&rsquo;s do that with ruby :)</li>
+</ul>
+
+
+<p>In this post we&rsquo;re going to manipulate some (high order) functions, and build a derivative operator in a functional style.</p>
+
+<!-- more -->
+
+
+<h3>Level 1 : some basic functions</h3>
+
+<p>In ruby you can define a <em>lambda</em> operator, that is an anonymous function that reads exactly as a mathematician would define it. For instance,</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">square</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">x</span><span class="o">*</span><span class="n">x</span><span class="p">}</span> <span class="c1">#or its equivalent notation: square = lambda { |x| x*x }</span>
+</span><span class='line'><span class="n">plus_one</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">x</span><span class="o">+</span><span class="mi">1</span><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>defines a function that, when given an argument <code>x</code>, returns <code>x*x</code>.</p>
+
+<p>We can call it and see the result :</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">square</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="c1">#=&gt; 4</span>
+</span><span class='line'><span class="n">plus_one</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="c1">#=&gt; 3</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>More interestingly, higher order function can be defined, whose purpose is to manipulate other functions.</p>
+
+<p>For instance, let&rsquo;s define some basic operators <code>minus</code>,<code>mult</code>,<code>div</code> that can respectively add, subtract, multiply or divide functions altogether.</p>
+
+<p>Note that we want <code>new_function = minus.(f,g)</code> to return a function.
+Rather than describing how to subtract two values, we want to define what <code>f -g</code> means when both f and g are functions.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">minus</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'><span class="n">div</span>   <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">/</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'><span class="n">mult</span>  <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Does that works ? With the previously defined functions:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">my_fancy_func</span> <span class="o">=</span> <span class="n">minus</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">,</span><span class="n">plus_one</span><span class="p">)</span> <span class="c1"># defining a new function</span>
+</span><span class='line'><span class="n">my_fancy_func</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1">#=&gt; 5 = 3*3 - ( 3 + 1)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Sweet.</p>
+
+<ul>
+<li><em>Allright, but how is that really fancy?</em></li>
+</ul>
+
+
+<p>Well, let&rsquo;s take our trip to a next step:</p>
+
+<h3>Level 2 : I can haz derivative ?</h3>
+
+<p><em>Hey, I know an operator that works on functions : the derivative operator. How about we build one ?</em></p>
+
+<p>Alright. Let&rsquo;s build a derivative operator. That is, a function that takes a function as an argument, and return another function: its derivate.</p>
+
+<p>The derivative of a function at some point <em>x</em> can be obtained by evaluating
+<img src="/images/derivative.gif" alt="derivative" />, <em>i.e.</em> the limit when epsilon &ndash;> 0 of a derivative scheme based on f at point x.</p>
+
+<p>Here&rsquo;s the plan :</p>
+
+<ul>
+<li>Define a limit operator</li>
+<li>define a derivative scheme</li>
+<li>define the derivative operator as the limit of the derivative scheme of a function</li>
+<li>Since we&rsquo;re at it, define any <em>nth derivative operator</em> : We should be able to derivate n times any function.</li>
+<li>Profit and use it on <em>any function</em></li>
+</ul>
+
+
+<p>For the sake of clarity, let&rsquo;s begin with a simplified version, and assume that <code>epsilon = 1e-3</code> is low enough to approximate the limit of our derivative scheme.</p>
+
+<p>Once we&rsquo;re more comfortable with the concepts, we&rsquo;ll get rid of this assumption and implement a true derivative operator.</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">derivative</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span> <span class="p">{</span> <span class="c1"># we take a function as argument</span>
+</span><span class='line'>  <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="c1"># the function takes a real x as argument</span>
+</span><span class='line'>    <span class="p">(</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">3</span><span class="p">)</span> <span class="o">-</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">3</span><span class="p">)</span> <span class="p">)</span> <span class="o">/</span> <span class="p">(</span> <span class="mi">2</span><span class="n">e</span><span class="o">-</span><span class="mi">3</span> <span class="p">)</span> <span class="c1"># apply the scheme</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Let&#39;s try:</span>
+</span><span class='line'><span class="n">derivative_of_square</span> <span class="o">=</span> <span class="n">derivative</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">)</span>  <span class="o">=&gt;</span> <span class="c1">#&lt;Proc:0x00000001b7c270@(irb):24 (lambda)&gt; . Yay, a new function ! </span>
+</span><span class='line'>
+</span><span class='line'><span class="c1">#Can we use it ? </span>
+</span><span class='line'><span class="n">square</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># =&gt; 9</span>
+</span><span class='line'><span class="n">derivative_of_square</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1">#  =&gt; 5.999999999999339 ~ 2*3. Cool !</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><em>Sooo&hellip; can I derivate twice ?</em></p>
+
+<p>Yup. Simply get the derivative of the derivative :</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">second_derivative_of_square</span> <span class="o">=</span> <span class="n">derivative</span><span class="o">.</span><span class="p">(</span> <span class="n">derivative</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">)</span> <span class="p">)</span> <span class="c1"># this should be a constant function that return 2</span>
+</span><span class='line'><span class="n">second_derivative_of_square</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="c1">#=&gt; 1.999999999946489</span>
+</span><span class='line'><span class="n">second_derivative_of_square</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1">#=&gt; 2.000000000279556</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><em>Sooooooo&hellip; can I derivate n times ?</em></p>
+
+<p>Yup. Although we don&rsquo;t want to create thousands of <code>third_derivative</code>,<code>forth_derivative</code>&hellip;etc, right ?</p>
+
+<p>Let&rsquo;s go one order higher and define the <em>nth derivative operator</em></p>
+
+<p>Since we can derivate a function, and we want to do it n times, what we miss is simply a <code>n-times combinator</code>. For example, <code>n_times.(f).(2)</code> should return <code>x -&gt; f(f(x))</code> regardless of what <code>f</code> and <code>x</code> are.</p>
+
+<p>Shall we do it recursively ?</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">n_times</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">n</span><span class="p">,</span><span class="n">f</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">n</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">?</span> <span class="n">f</span> <span class="p">:</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">n_times</span><span class="o">.</span><span class="p">(</span><span class="n">n</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">))}</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><strong>Explanation</strong> :</p>
+
+<ul>
+<li>if <em>n = 1</em> then we want f. so return f. So far so good, <code>n_times(1,f) = f</code></li>
+<li>If <em>n = 2</em>, then we want f(f) = f( n_times.(1,f) )</li>
+<li>If <em>n = 3</em>, then we want f(f(f)) = f( n_times.(2,f) )</li>
+</ul>
+
+
+<p>&hellip;etc. Get it ?</p>
+
+<p><em>Wait&hellip; that&rsquo;s all ? Where&rsquo;s my nth derivative ?</em></p>
+
+<p>Now it&rsquo;s quite easy to derivate n times :</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">nth_derivator</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">n</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">n_times</span><span class="o">.</span><span class="p">(</span><span class="n">n</span><span class="p">,</span><span class="n">derivate</span><span class="p">)</span>
+</span><span class='line'><span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This <code>nth_derivator</code> will take <code>n</code> as an argument, and derivate n times whatever we decide to pass to it.</p>
+
+<p>Let&rsquo;s play with it!</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">derivative_of_square</span> <span class="o">=</span> <span class="n">nth_derivator</span><span class="o">.</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">)</span> <span class="c1">#derivate one time</span>
+</span><span class='line'><span class="n">second_derivative_of_square</span> <span class="o">=</span> <span class="n">nth_derivator</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">)</span> <span class="c1">#derivate two times</span>
+</span><span class='line'><span class="n">third_derivative_of_square</span> <span class="o">=</span> <span class="n">nth_derivator</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">)</span> <span class="c1">#derivate three times</span>
+</span><span class='line'>
+</span><span class='line'><span class="nb">p</span> <span class="n">derivative_of_square</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># =&gt; 5.999999999999339</span>
+</span><span class='line'><span class="nb">p</span> <span class="n">second_derivative_of_square</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># =&gt; 2.000000000279556</span>
+</span><span class='line'><span class="nb">p</span> <span class="n">third_derivative_of_square</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># =&gt; 0.0</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><em>That&rsquo;s cool ! but those are approximations, right ? we never actually calculated the limit</em></p>
+
+<p>Yet.</p>
+
+<h3>Level 3 : More functional, and a true limit operator</h3>
+
+<p>Now that we have a better feel for it (have we?), let&rsquo;s refactor our derivative operator so that it is <em>actually</em> defined as a limit. And hey, let&rsquo;s parametrize the precision that we want since we&rsquo;re at it.</p>
+
+<p><img class="right" src="/images/party_over.gif" title="" ></p>
+
+<p>First, let&rsquo;s write a bunch of tools that are going to be useful:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">minus</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span> <span class="c1"># f - g</span>
+</span><span class='line'><span class="n">div</span>   <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">/</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span> <span class="c1"># f / g</span>
+</span><span class='line'><span class="n">mult</span>  <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span> <span class="c1"># f * g</span>
+</span><span class='line'><span class="n">norm</span>  <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span>   <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">abs</span><span class="p">}}</span> <span class="c1"># absolute value</span>
+</span><span class='line'><span class="n">const</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">const</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">const</span><span class="p">}</span> <span class="p">}</span> <span class="c1"># That&#39;s right, the constant function !</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># You should recognize these:</span>
+</span><span class='line'><span class="n">plus_eps</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">eps</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">f</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="n">eps</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'><span class="n">min_eps</span>  <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">eps</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">f</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="n">eps</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># is f &lt; g ? </span>
+</span><span class='line'><span class="n">inf</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now the limit function. Here we are going to define a function, that actually implement the following (naive) algorithm:</p>
+
+<ul>
+<li>variables : a function <code>f</code>, a starting epsilon <code>eps</code>, and a threshold <code>tres</code></li>
+<li><ol>
+<li>Evaluate y = ||f(x + epsilon/2) &ndash; f(x + epsilon) ||</li>
+</ol>
+</li>
+<li><ol>
+<li>if y &lt; tres, then we are converged, and lowering epsilon wouldn&rsquo;t change the result much. Return f(x+epsilon).</li>
+</ol>
+</li>
+<li><ol>
+<li>else, reduce epsilon and try again (i.e. go to 1.)</li>
+</ol>
+</li>
+</ul>
+
+
+<p>Obviously, this algorithm is quite simple, and will only work when dealing with smooth, continuous, and gracious functions.</p>
+
+<p>Ready ?</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">lim</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">eps</span><span class="p">,</span><span class="n">tres</span> <span class="p">{</span>
+</span><span class='line'>  <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">inf</span><span class="o">.</span><span class="p">(</span>
+</span><span class='line'>      <span class="n">norm</span><span class="o">.</span><span class="p">(</span>
+</span><span class='line'>        <span class="n">minus</span><span class="o">.</span><span class="p">(</span>
+</span><span class='line'>          <span class="n">plus_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="o">/</span><span class="mi">2</span><span class="o">.</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">),</span>
+</span><span class='line'>          <span class="n">plus_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+</span><span class='line'>        <span class="p">)</span>
+</span><span class='line'>      <span class="p">),</span> <span class="n">const</span><span class="o">.</span><span class="p">(</span><span class="n">tres</span><span class="p">)</span> <span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">?</span> <span class="n">plus_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">:</span> <span class="n">lim</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="n">eps</span><span class="o">/</span><span class="mi">2</span><span class="o">.</span><span class="mi">0</span><span class="p">,</span><span class="n">tres</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Does it even work ?</span>
+</span><span class='line'><span class="n">lim</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="c1">#=&gt; 5.0625 wut ?</span>
+</span><span class='line'><span class="n">lim</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="c1">#=&gt; 4.0156402587890625 Ah. Better</span>
+</span><span class='line'><span class="n">lim</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">16</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="c1">#=&gt; 4.0 How nice !</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Now we&rsquo;re getting close ! Let&rsquo;s refactor our derivative operator in a more appropriate way and get our final derivative operator:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1"># derivative_scheme.(f).(x) shall be a function of epsilon</span>
+</span><span class='line'><span class="n">derivative_sheme</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span> <span class="p">{</span>
+</span><span class='line'>  <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span>
+</span><span class='line'>    <span class="o">-&gt;</span> <span class="n">eps</span> <span class="p">{</span>
+</span><span class='line'>      <span class="n">div</span><span class="o">.</span><span class="p">(</span> <span class="n">minus</span><span class="o">.</span><span class="p">(</span><span class="n">plus_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">),</span> <span class="n">min_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="p">),</span> <span class="n">mult</span><span class="o">.</span><span class="p">(</span><span class="n">const</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">const</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)))</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</span><span class='line'>    <span class="p">}</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># And the derivative operator: </span>
+</span><span class='line'><span class="c1"># Let&#39;s fix the treshold at tres = 1e-16</span>
+</span><span class='line'><span class="n">derivate</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span> <span class="p">{</span>
+</span><span class='line'>  <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">lim</span><span class="o">.</span><span class="p">(</span><span class="n">derivative_sheme</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">),</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">16</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="c1"># limit of the derivative scheme of f(x), taken at epsilon = 0</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Isn&#39;t that fancy ? We juste define the derivative operator</span>
+</span><span class='line'><span class="c1"># exactly as the limit of (f(x + e) - f(x - e))/(2e) when epsilon -&gt; 0</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Summary</h3>
+
+<p>Here&rsquo;s a full code of what we implemented <a href="/assets/aherves_blog_ruby_functional.rb">(download it)</a></p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1">#!/usr/bin/env ruby</span>
+</span><span class='line'><span class="c1"># Our fancy function. Could be exactly anything</span>
+</span><span class='line'><span class="n">square</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">x</span><span class="o">*</span><span class="n">x</span><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># some tools</span>
+</span><span class='line'><span class="n">minus</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">-</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'><span class="n">div</span>   <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">/</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'><span class="n">mult</span>  <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'><span class="n">norm</span>  <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span>   <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">abs</span><span class="p">}}</span>
+</span><span class='line'><span class="n">const</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">const</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">const</span><span class="p">}</span> <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">plus_eps</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">eps</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">f</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="n">eps</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'><span class="n">min_eps</span>  <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">eps</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">f</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="o">-</span><span class="n">eps</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">inf</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">g</span> <span class="p">{</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">g</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># The limit operator</span>
+</span><span class='line'><span class="n">lim</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">,</span><span class="n">eps</span><span class="p">,</span><span class="n">prec</span> <span class="p">{</span>
+</span><span class='line'>   <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span>
+</span><span class='line'>    <span class="n">inf</span><span class="o">.</span><span class="p">(</span><span class="n">norm</span><span class="o">.</span><span class="p">(</span><span class="n">minus</span><span class="o">.</span><span class="p">(</span><span class="n">plus_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="o">/</span><span class="mi">2</span><span class="o">.</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">),</span> <span class="n">plus_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">)))</span> <span class="p">,</span> <span class="n">const</span><span class="o">.</span><span class="p">(</span><span class="n">prec</span><span class="p">)</span> <span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">?</span> <span class="n">plus_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">:</span> <span class="n">lim</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="n">eps</span><span class="o">/</span><span class="mi">2</span><span class="o">.</span><span class="mi">0</span><span class="p">,</span><span class="n">prec</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</span><span class='line'>  <span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># The derivative scheme</span>
+</span><span class='line'><span class="n">derivative_sheme</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span> <span class="p">{</span>
+</span><span class='line'>  <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span>
+</span><span class='line'>  <span class="o">-&gt;</span> <span class="n">eps</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">div</span><span class="o">.</span><span class="p">(</span> <span class="n">minus</span><span class="o">.</span><span class="p">(</span><span class="n">plus_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">),</span> <span class="n">min_eps</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="p">),</span> <span class="n">mult</span><span class="o">.</span><span class="p">(</span><span class="n">const</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">const</span><span class="o">.</span><span class="p">(</span><span class="n">eps</span><span class="p">)))</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># The derivative operator at precision 1e-16 is the limit of the derivative scheme</span>
+</span><span class='line'><span class="n">derivate</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">f</span><span class="p">{</span>
+</span><span class='line'>  <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">lim</span><span class="o">.</span><span class="p">(</span><span class="n">derivative_sheme</span><span class="o">.</span><span class="p">(</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">),</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">16</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># call any function n times</span>
+</span><span class='line'><span class="n">n_times</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">n</span><span class="p">,</span><span class="n">f</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">n</span> <span class="o">==</span> <span class="mi">1</span> <span class="o">?</span> <span class="n">f</span> <span class="p">:</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="n">f</span><span class="o">.</span><span class="p">(</span><span class="n">n_times</span><span class="o">.</span><span class="p">(</span><span class="n">n</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="n">f</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">x</span><span class="p">))}</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># an nth derivator is a derivator called n times:</span>
+</span><span class='line'><span class="n">nth_derivator</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">n</span> <span class="p">{</span>
+</span><span class='line'>  <span class="n">n_times</span><span class="o">.</span><span class="p">(</span><span class="n">n</span><span class="p">,</span><span class="n">derivate</span><span class="p">)</span>
+</span><span class='line'><span class="p">}</span>
+</span><span class='line'>
+</span><span class='line'>
+</span><span class='line'><span class="nb">p</span> <span class="n">nth_derivator</span><span class="o">.</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># =&gt; 6 =  2*(3)</span>
+</span><span class='line'><span class="nb">p</span> <span class="n">nth_derivator</span><span class="o">.</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># =&gt; 2 =  constant(2)</span>
+</span><span class='line'><span class="nb">p</span> <span class="n">nth_derivator</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">square</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1"># =&gt; 0 = constant(0)</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">logarithm</span> <span class="o">=</span> <span class="o">-&gt;</span> <span class="n">x</span> <span class="p">{</span> <span class="no">Math</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="p">}</span>
+</span><span class='line'><span class="nb">p</span> <span class="n">nth_derivator</span><span class="o">.</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="n">logarithm</span><span class="p">)</span><span class="o">.</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="c1">#=&gt; 0.3333333333430346 ~ 1/3 I can derivate whatever I want !</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Well that&rsquo;s all, hope you enjoyed reading this (at least) as much as I enjoyed writing it. Feel free to drop some comments, suggest anything, c orrect some code (or my english ) :)</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">A. Hervé</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-02-27T21:51:46+01:00" pubdate data-updated="true">Feb 27<span>th</span>, 2014</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/functional-programming/'>functional programming</a>, <a class='category' href='/blog/categories/maths/'>maths</a>, <a class='category' href='/blog/categories/ruby/'>ruby</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://aurelien-herve.com/blog/2014/02/27/some-cool-functional-programming-with-ruby/" data-via="aurel_herve" data-counturl="http://aurelien-herve.com/blog/2014/02/27/some-cool-functional-programming-with-ruby/" >Tweet</a>
+  
+  
+  
+    <div class="fb-like" data-send="true" data-width="450" data-show-faces="false"></div>
+  
+</div>
+
+    
+    
+    <section>
+      <h1>Comments</h1>
+      <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+    </section>
+    
+    <ul class="pager">
+      
+      <li class="previous"><a class="basic-alignment left"
+        href="/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/" title="Previous Post:
+        How to create a gem structure with rspec and code coverage">&laquo; How to create a gem structure with rspec and code coverage</a></li>
+      
+      <li><a href="/blog/archives">Blog Archives</a></li>
+      
+      <li class="next"><a class="basic-alignment right" href="/blog/2014/05/23/how-to-migrate-your-django-users-to-a-new-rails-application/"
+        title="Next Post: how to migrate your django users to a new rails application">how to migrate your django users to a new rails application
+        &raquo;</a></li>
+      
+    </ul>
+  </footer>
+</article>
+
+<aside class="sidebar-nav span3">
+  
+    <section class="well">
+  <ul id="recent_posts" class="nav nav-list">
+    <li class="nav-header">Recent Posts</li>
+    
+      <li class="post">
+        <a href="/blog/2015/01/14/big-data-with-hadoop-stream-and-ruby/">Big data with hadoop stream and ruby (and not even one line of java)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/10/14/advanced-api-option-parser-for-grape/">Building an advanced api option parser for grape</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/05/23/how-to-migrate-your-django-users-to-a-new-rails-application/">how to migrate your django users to a new rails application</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/02/27/some-cool-functional-programming-with-ruby/">Having fun with functional programming in ruby</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/02/15/create-a-gem-structure-with-rspec-and-code-coverage/">How to create a gem structure with rspec and code coverage</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section class="well">
+  <ul id="gh_repos" class="nav">
+    <li class="nav-header">GitHub Repos</li>
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/aherve">@aherve</a> on GitHub
+  
+  <script type="text/javascript">
+    $(document).ready(function(){
+        github.showRepos({
+            user: 'aherve',
+            count: 3,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/asides/github.js" type="text/javascript"> </script>
+</section>
+
+<a class="twitter-timeline" href="https://twitter.com/aurel_herve" data-widget-id="439334447087747072">Tweets by @aurel_herve</a>
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+"://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo" class="page-footer"><hr>
+<p>
+  Copyright &copy; 2015 - A. Hervé -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'aherve';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://aurelien-herve.com/blog/2014/02/27/some-cool-functional-programming-with-ruby/';
+        var disqus_url = 'http://aurelien-herve.com/blog/2014/02/27/some-cool-functional-programming-with-ruby/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) {return;}
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/all.js#appId=212934732101925&xfbml=1";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

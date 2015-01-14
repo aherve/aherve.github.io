@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: rails | Aurélien Hervé]]></title>
+  <link href="http://aurelien-herve.com/blog/categories/rails/atom.xml" rel="self"/>
+  <link href="http://aurelien-herve.com/"/>
+  <updated>2015-01-14T18:24:15+01:00</updated>
+  <id>http://aurelien-herve.com/</id>
+  <author>
+    <name><![CDATA[A. Hervé]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[how to migrate your django users to a new rails application]]></title>
+    <link href="http://aurelien-herve.com/blog/2014/05/23/how-to-migrate-your-django-users-to-a-new-rails-application/"/>
+    <updated>2014-05-23T10:59:28+02:00</updated>
+    <id>http://aurelien-herve.com/blog/2014/05/23/how-to-migrate-your-django-users-to-a-new-rails-application</id>
+    <content type="html"><![CDATA[<p>I recently had to migrate a users database from a django app to a brand new rails app. Is it possible to do that without having to request all our users to change their passwords ?</p>
+
+<!-- more -->
+
+
+<p>As you probably already know, plain-text passwords are not, and should <strong>never</strong> be stored in your database. When a user sign up, his/her password is <a href="http://en.wikipedia.org/wiki/Cryptographic_hash_function">hashed</a> before the resulting hash is saved to the database.
+When signin in, the user given password is hashed again, so both hashes (one is stored, the other is provided during the login process) can be checked against each other.</p>
+
+<p>If you&rsquo;re working with rails then you probably know about <a href="https://github.com/plataformatec/devise">Devise</a>: an awesome authentication solution for rails.</p>
+
+<p>Both django and rails/devise properly hash the users passwords. However the process is not the same, and a <em>django encrypted</em> password will not be recognized by the Devise engine as it is.</p>
+
+<h3>The pbkdf2-password-hasher gem</h3>
+
+<p>The app I had to deal with uses <a href="http://en.wikipedia.org/wiki/PBKDF2">pbkdf2</a> encryption algorithm (I&rsquo;m guessing it is a django standard but I have honestly no idea wether it is or not). The idea is then to teach devise how to check such an encrypted password.</p>
+
+<p>I had some trouble to find something satisfying, so I wrote a gem : <a href="https://github.com/aherve/pbkdf2-password-hasher">pbkdf2-password-hasher</a> to solve this issue. Basically, it implements in ruby the pbkdf2 encryption process, so we can easily check a password against a hashed string:</p>
+
+<p>```ruby</p>
+
+<h1>hashed string from django app</h1>
+
+<p>hsh =&lsquo;pbkdf2_sha256$12000$PEnXGf9dviXF$2soDhu1WB8NSbFDm0w6NEe6OvslVXtiyf4VMiiy9rH0=&rsquo;</p>
+
+<h1>with right password:</h1>
+
+<p>Pbkdf2PasswordHasher.check_password(&lsquo;bite&rsquo;,hsh) #=> true</p>
+
+<h1>with wrong password:</h1>
+
+<p>Pbkdf2PasswordHasher.check_password(&lsquo;bitten&rsquo;,hsh) #=> false
+```</p>
+
+<h3>Rasils/Devise integration</h3>
+
+<p>To use this gem in your rails application, simply call it from your Gemfile:</p>
+
+<p><code>ruby Gemfile
+gem pbkdf2_password_hasher
+</code></p>
+
+<p>and run <code>bundle install</code>. Now that the gem is installed, we simply need to tell devise how to use it. To do this, let&rsquo;s override the <code>valid_password?</code> method on our model.</p>
+
+<p>Let&rsquo;s say you created a <code>User</code> model, then simply add</p>
+
+<p>```ruby app/models/user.rb
+def valid_password?(pwd)
+  begin</p>
+
+<pre><code>super(pwd) # try the standard way
+</code></pre>
+
+<p>  rescue</p>
+
+<pre><code>Pbkdf2PasswordHasher.check_password(pwd,self.encrypted_password) # if failed, then try the django's way
+</code></pre>
+
+<p>  end
+end
+```
+to your model&rsquo;s definition.</p>
+
+<p>And <em>voilà</em> ! Old users can login using their old passwords, whereas new users will still be able to create new accounts, that will be dealt with in the usual devise way.</p>
+
+<p>Isn&rsquo;t that nice ?</p>
+
+<p>Aurélien</p>
+]]></content>
+  </entry>
+  
+</feed>

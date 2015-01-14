@@ -1,0 +1,374 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: maths | Aurélien Hervé]]></title>
+  <link href="http://aurelien-herve.com/blog/categories/maths/atom.xml" rel="self"/>
+  <link href="http://aurelien-herve.com/"/>
+  <updated>2015-01-14T18:24:15+01:00</updated>
+  <id>http://aurelien-herve.com/</id>
+  <author>
+    <name><![CDATA[A. Hervé]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Having fun with functional programming in ruby]]></title>
+    <link href="http://aurelien-herve.com/blog/2014/02/27/some-cool-functional-programming-with-ruby/"/>
+    <updated>2014-02-27T21:51:46+01:00</updated>
+    <id>http://aurelien-herve.com/blog/2014/02/27/some-cool-functional-programming-with-ruby</id>
+    <content type="html"><![CDATA[<p>Today we&rsquo;re going to play around with functional programming. Yay !</p>
+
+<ul>
+<li><em>Ok, what&rsquo;s that exactly ?</em></li>
+</ul>
+
+
+<p>Wikipedia says it pretty much:</p>
+
+<blockquote><p>functional programming is a programming paradigm, a style of building the structure and elements of computer programs, that treats computation as the evaluation of mathematical functions and avoids state and mutable data.</p></blockquote>
+
+<ul>
+<li>Alright, now let&rsquo;s have some fun with functional programming style, and of course, let&rsquo;s do that with ruby :)</li>
+</ul>
+
+
+<p>In this post we&rsquo;re going to manipulate some (high order) functions, and build a derivative operator in a functional style.</p>
+
+<!-- more -->
+
+
+<h3>Level 1 : some basic functions</h3>
+
+<p>In ruby you can define a <em>lambda</em> operator, that is an anonymous function that reads exactly as a mathematician would define it. For instance,
+<code>ruby
+square = -&gt; x { x*x} #or its equivalent notation: square = lambda { |x| x*x }
+plus_one = -&gt; x { x+1}
+</code>
+defines a function that, when given an argument <code>x</code>, returns <code>x*x</code>.</p>
+
+<p>We can call it and see the result :
+<code>ruby
+square.(2) #=&gt; 4
+plus_one.(2) #=&gt; 3
+</code></p>
+
+<p>More interestingly, higher order function can be defined, whose purpose is to manipulate other functions.</p>
+
+<p>For instance, let&rsquo;s define some basic operators <code>minus</code>,<code>mult</code>,<code>div</code> that can respectively add, subtract, multiply or divide functions altogether.</p>
+
+<p>Note that we want <code>new_function = minus.(f,g)</code> to return a function.
+Rather than describing how to subtract two values, we want to define what <code>f -g</code> means when both f and g are functions.</p>
+
+<p><code>ruby
+minus = -&gt; f,g { -&gt; x { f.(x) - g.(x) } }
+div   = -&gt; f,g { -&gt; x { f.(x) / g.(x) } }
+mult  = -&gt; f,g { -&gt; x { f.(x) * g.(x) } }
+</code></p>
+
+<p>Does that works ? With the previously defined functions:</p>
+
+<p><code>ruby
+my_fancy_func = minus.(square,plus_one) # defining a new function
+my_fancy_func.(3) #=&gt; 5 = 3*3 - ( 3 + 1)
+</code></p>
+
+<p>Sweet.</p>
+
+<ul>
+<li><em>Allright, but how is that really fancy?</em></li>
+</ul>
+
+
+<p>Well, let&rsquo;s take our trip to a next step:</p>
+
+<h3>Level 2 : I can haz derivative ?</h3>
+
+<p><em>Hey, I know an operator that works on functions : the derivative operator. How about we build one ?</em></p>
+
+<p>Alright. Let&rsquo;s build a derivative operator. That is, a function that takes a function as an argument, and return another function: its derivate.</p>
+
+<p>The derivative of a function at some point <em>x</em> can be obtained by evaluating
+<img src="/images/derivative.gif" alt="derivative" />, <em>i.e.</em> the limit when epsilon &ndash;> 0 of a derivative scheme based on f at point x.</p>
+
+<p>Here&rsquo;s the plan :</p>
+
+<ul>
+<li>Define a limit operator</li>
+<li>define a derivative scheme</li>
+<li>define the derivative operator as the limit of the derivative scheme of a function</li>
+<li>Since we&rsquo;re at it, define any <em>nth derivative operator</em> : We should be able to derivate n times any function.</li>
+<li>Profit and use it on <em>any function</em></li>
+</ul>
+
+
+<p>For the sake of clarity, let&rsquo;s begin with a simplified version, and assume that <code>epsilon = 1e-3</code> is low enough to approximate the limit of our derivative scheme.</p>
+
+<p>Once we&rsquo;re more comfortable with the concepts, we&rsquo;ll get rid of this assumption and implement a true derivative operator.</p>
+
+<p>```ruby
+derivative = &ndash;> f { # we take a function as argument
+  &ndash;> x { # the function takes a real x as argument</p>
+
+<pre><code>( f.(x+1e-3) - f.(x-1e-3) ) / ( 2e-3 ) # apply the scheme
+</code></pre>
+
+<p>  }
+}</p>
+
+<h1>Let&rsquo;s try:</h1>
+
+<p>derivative_of_square = derivative.(square)  => #&lt;Proc:0x00000001b7c270@(irb):24 (lambda)> . Yay, a new function !</p>
+
+<h1>Can we use it ?</h1>
+
+<p>square.(3) # => 9
+derivative_of_square.(3) #  => 5.999999999999339 ~ 2*3. Cool !
+```</p>
+
+<p><em>Sooo&hellip; can I derivate twice ?</em></p>
+
+<p>Yup. Simply get the derivative of the derivative :
+<code>ruby
+second_derivative_of_square = derivative.( derivative.(square) ) # this should be a constant function that return 2
+second_derivative_of_square.(2) #=&gt; 1.999999999946489
+second_derivative_of_square.(3) #=&gt; 2.000000000279556
+</code></p>
+
+<p><em>Sooooooo&hellip; can I derivate n times ?</em></p>
+
+<p>Yup. Although we don&rsquo;t want to create thousands of <code>third_derivative</code>,<code>forth_derivative</code>&hellip;etc, right ?</p>
+
+<p>Let&rsquo;s go one order higher and define the <em>nth derivative operator</em></p>
+
+<p>Since we can derivate a function, and we want to do it n times, what we miss is simply a <code>n-times combinator</code>. For example, <code>n_times.(f).(2)</code> should return <code>x -&gt; f(f(x))</code> regardless of what <code>f</code> and <code>x</code> are.</p>
+
+<p>Shall we do it recursively ?
+<code>ruby
+n_times = -&gt; n,f {
+  n == 1 ? f : -&gt; x { f.(n_times.(n-1,f).(x))}
+}
+</code></p>
+
+<p><strong>Explanation</strong> :</p>
+
+<ul>
+<li>if <em>n = 1</em> then we want f. so return f. So far so good, <code>n_times(1,f) = f</code></li>
+<li>If <em>n = 2</em>, then we want f(f) = f( n_times.(1,f) )</li>
+<li>If <em>n = 3</em>, then we want f(f(f)) = f( n_times.(2,f) )</li>
+</ul>
+
+
+<p>&hellip;etc. Get it ?</p>
+
+<p><em>Wait&hellip; that&rsquo;s all ? Where&rsquo;s my nth derivative ?</em></p>
+
+<p>Now it&rsquo;s quite easy to derivate n times :</p>
+
+<p><code>ruby
+nth_derivator = -&gt; n {
+  n_times.(n,derivate)
+}
+</code>
+This <code>nth_derivator</code> will take <code>n</code> as an argument, and derivate n times whatever we decide to pass to it.</p>
+
+<p>Let&rsquo;s play with it!
+```ruby
+derivative_of_square = nth_derivator.(1).(square) #derivate one time
+second_derivative_of_square = nth_derivator.(2).(square) #derivate two times
+third_derivative_of_square = nth_derivator.(3).(square) #derivate three times</p>
+
+<p>p derivative_of_square.(3) # => 5.999999999999339
+p second_derivative_of_square.(3) # => 2.000000000279556
+p third_derivative_of_square.(3) # => 0.0
+```</p>
+
+<p><em>That&rsquo;s cool ! but those are approximations, right ? we never actually calculated the limit</em></p>
+
+<p>Yet.</p>
+
+<h3>Level 3 : More functional, and a true limit operator</h3>
+
+<p>Now that we have a better feel for it (have we?), let&rsquo;s refactor our derivative operator so that it is <em>actually</em> defined as a limit. And hey, let&rsquo;s parametrize the precision that we want since we&rsquo;re at it.</p>
+
+<p><img class="right" src="/images/party_over.gif" title="" ></p>
+
+<p>First, let&rsquo;s write a bunch of tools that are going to be useful:
+```ruby
+minus = &ndash;> f,g { &ndash;> x { f.(x) &ndash; g.(x) } } # f &ndash; g
+div   = &ndash;> f,g { &ndash;> x { f.(x) / g.(x) } } # f / g
+mult  = &ndash;> f,g { &ndash;> x { f.(x) * g.(x) } } # f * g
+norm  = &ndash;> f   { &ndash;> x { f.(x).abs}} # absolute value
+const = &ndash;> const { &ndash;> x { const} } # That&rsquo;s right, the constant function !</p>
+
+<h1>You should recognize these:</h1>
+
+<p>plus_eps = &ndash;> eps { &ndash;> f { &ndash;> x { f.(x+eps) } } }
+min_eps  = &ndash;> eps { &ndash;> f { &ndash;> x { f.(x-eps) } } }</p>
+
+<h1>is f &lt; g ?</h1>
+
+<p>inf = &ndash;> f,g { &ndash;> x { f.(x) &lt; g.(x) } }
+```</p>
+
+<p>Now the limit function. Here we are going to define a function, that actually implement the following (naive) algorithm:</p>
+
+<ul>
+<li>variables : a function <code>f</code>, a starting epsilon <code>eps</code>, and a threshold <code>tres</code></li>
+<li><ol>
+<li>Evaluate y = ||f(x + epsilon/2) &ndash; f(x + epsilon) ||</li>
+</ol>
+</li>
+<li><ol>
+<li>if y &lt; tres, then we are converged, and lowering epsilon wouldn&rsquo;t change the result much. Return f(x+epsilon).</li>
+</ol>
+</li>
+<li><ol>
+<li>else, reduce epsilon and try again (i.e. go to 1.)</li>
+</ol>
+</li>
+</ul>
+
+
+<p>Obviously, this algorithm is quite simple, and will only work when dealing with smooth, continuous, and gracious functions.</p>
+
+<p>Ready ?
+```ruby
+lim = &ndash;> f,eps,tres {
+  &ndash;> x {</p>
+
+<pre><code>inf.(
+  norm.(
+    minus.(
+      plus_eps.(eps/2.0).(f),
+      plus_eps.(eps).(f)
+    )
+  ), const.(tres) ).(x) ? plus_eps.(eps).(f).(x) : lim.(f,eps/2.0,tres).(x)
+</code></pre>
+
+<p>  }
+}</p>
+
+<h1>Does it even work ?</h1>
+
+<p>lim.(square,1,1).(2) #=> 5.0625 wut ?
+lim.(square,1,1e-2).(2) #=> 4.0156402587890625 Ah. Better
+lim.(square,1,1e-16).(2) #=> 4.0 How nice !
+```</p>
+
+<p>Now we&rsquo;re getting close ! Let&rsquo;s refactor our derivative operator in a more appropriate way and get our final derivative operator:</p>
+
+<p>```ruby</p>
+
+<h1>derivative_scheme.(f).(x) shall be a function of epsilon</h1>
+
+<p>derivative_sheme = &ndash;> f {
+  &ndash;> x {</p>
+
+<pre><code>-&gt; eps {
+  div.( minus.(plus_eps.(eps).(f), min_eps.(eps).(f) ), mult.(const.(2), const.(eps))).(x)
+}
+</code></pre>
+
+<p>  }
+}</p>
+
+<h1>And the derivative operator:</h1>
+
+<h1>Let&rsquo;s fix the treshold at tres = 1e-16</h1>
+
+<p>derivate = &ndash;> f {
+  &ndash;> x {</p>
+
+<pre><code>lim.(derivative_sheme.(f).(x),1,1e-16).(0) # limit of the derivative scheme of f(x), taken at epsilon = 0
+</code></pre>
+
+<p>  }
+}</p>
+
+<h1>Isn&rsquo;t that fancy ? We juste define the derivative operator</h1>
+
+<h1>exactly as the limit of (f(x + e) &ndash; f(x &ndash; e))/(2e) when epsilon &ndash;> 0</h1>
+
+<p>```</p>
+
+<h3>Summary</h3>
+
+<p>Here&rsquo;s a full code of what we implemented <a href="/assets/aherves_blog_ruby_functional.rb">(download it)</a></p>
+
+<p>```ruby</p>
+
+<h1>!/usr/bin/env ruby</h1>
+
+<h1>Our fancy function. Could be exactly anything</h1>
+
+<p>square = &ndash;> x { x*x}</p>
+
+<h1>some tools</h1>
+
+<p>minus = &ndash;> f,g { &ndash;> x { f.(x) &ndash; g.(x) } }
+div   = &ndash;> f,g { &ndash;> x { f.(x) / g.(x) } }
+mult  = &ndash;> f,g { &ndash;> x { f.(x) * g.(x) } }
+norm  = &ndash;> f   { &ndash;> x { f.(x).abs}}
+const = &ndash;> const { &ndash;> x { const} }</p>
+
+<p>plus_eps = &ndash;> eps { &ndash;> f { &ndash;> x { f.(x+eps) } } }
+min_eps  = &ndash;> eps { &ndash;> f { &ndash;> x { f.(x-eps) } } }</p>
+
+<p>inf = &ndash;> f,g { &ndash;> x { f.(x) &lt; g.(x) } }</p>
+
+<h1>The limit operator</h1>
+
+<p>lim = &ndash;> f,eps,prec {
+   &ndash;> x {</p>
+
+<pre><code>inf.(norm.(minus.(plus_eps.(eps/2.0).(f), plus_eps.(eps).(f))) , const.(prec) ).(x) ? plus_eps.(eps).(f).(x) : lim.(f,eps/2.0,prec).(x)
+</code></pre>
+
+<p>  }
+}</p>
+
+<h1>The derivative scheme</h1>
+
+<p>derivative_sheme = &ndash;> f {
+  &ndash;> x {
+  &ndash;> eps {
+  div.( minus.(plus_eps.(eps).(f), min_eps.(eps).(f) ), mult.(const.(2), const.(eps))).(x)
+}
+}
+}</p>
+
+<h1>The derivative operator at precision 1e-16 is the limit of the derivative scheme</h1>
+
+<p>derivate = &ndash;> f{
+  &ndash;> x {
+  lim.(derivative_sheme.(f).(x),1,1e-16).(0)
+}
+}</p>
+
+<h1>call any function n times</h1>
+
+<p>n_times = &ndash;> n,f {
+  n == 1 ? f : &ndash;> x { f.(n_times.(n-1,f).(x))}
+}</p>
+
+<h1>an nth derivator is a derivator called n times:</h1>
+
+<p>nth_derivator = &ndash;> n {
+  n_times.(n,derivate)
+}</p>
+
+<p>p nth_derivator.(1).(square).(3) # => 6 =  2*(3)
+p nth_derivator.(2).(square).(3) # => 2 =  constant(2)
+p nth_derivator.(3).(square).(3) # => 0 = constant(0)</p>
+
+<p>logarithm = &ndash;> x { Math.log(x) }
+p nth_derivator.(1).(logarithm).(3) #=> 0.3333333333430346 ~ 1/3 I can derivate whatever I want !
+```</p>
+
+<p>Well that&rsquo;s all, hope you enjoyed reading this (at least) as much as I enjoyed writing it. Feel free to drop some comments, suggest anything, c orrect some code (or my english ) :)</p>
+]]></content>
+  </entry>
+  
+</feed>

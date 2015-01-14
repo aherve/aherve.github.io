@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: physics | Aurélien Hervé]]></title>
+  <link href="http://aurelien-herve.com/blog/categories/physics/atom.xml" rel="self"/>
+  <link href="http://aurelien-herve.com/"/>
+  <updated>2015-01-14T18:24:15+01:00</updated>
+  <id>http://aurelien-herve.com/</id>
+  <author>
+    <name><![CDATA[A. Hervé]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[We should fix the physics engine]]></title>
+    <link href="http://aurelien-herve.com/blog/2014/02/13/we-should-fix-the-physics-engine/"/>
+    <updated>2014-02-13T16:54:23+01:00</updated>
+    <id>http://aurelien-herve.com/blog/2014/02/13/we-should-fix-the-physics-engine</id>
+    <content type="html"><![CDATA[<p>I think the Universe&rsquo;s laws of physics are now way outdated. Let&rsquo;s suggest a patch for this.</p>
+
+<p><code>Universe::Physics</code> v 2.1.0 release notes</p>
+
+<ul>
+<li><strong>Quantum tunnel glitch</strong> : fixed a bug that randomly caused particles to go through well potentials although they lacked the energy to do it.</li>
+<li><strong>High velocity engine improved</strong> : heavy computations at high speed caused local space-time to bend. The engine is now better and the so-called relativistic effects are now minimized.</li>
+<li><strong>Improved data structure (Heisenberg&rsquo;s bug)</strong>: Variables are stored with more efficiency. It is now possible to know both where a particle is, and at what speed it travels.</li>
+</ul>
+
+
+<!-- more -->
+
+
+<ul>
+<li><strong>Entropy leak</strong>: Some memory leaks that caused entropy to constantly grow without limit have been fixed.</li>
+<li><strong>Teleportation</strong>: Owing to some pointer error, changing the spin of some particle would instantly affect its twin particle in some setups. This is no longer the case.</li>
+<li><strong>Planck&rsquo;s constant</strong>: A better meshing takes place, and the Planck&rsquo;s constant has been drastically reduced so the universe seems more &ldquo;continuous&rdquo;.</li>
+<li><strong>Electrons</strong>: For the sake of simplicity, electrons now actually rotate around the atoms.</li>
+<li><strong>Pi number</strong>: It seems the ratio between a circle diameter and its circumference has attracted a lot of attention during the last two millenniums. For more convenience, it has been set to an exact &mdash;rational&mdash; value of <code>pi= 3.14</code>.</li>
+</ul>
+
+
+<p>Any further suggestions will be welcomed !</p>
+]]></content>
+  </entry>
+  
+</feed>
