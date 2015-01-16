@@ -4,7 +4,7 @@
   <title><![CDATA[Category: collaborative filtering | Aurélien Hervé]]></title>
   <link href="http://aurelien-herve.com/blog/categories/collaborative-filtering/atom.xml" rel="self"/>
   <link href="http://aurelien-herve.com/"/>
-  <updated>2015-01-16T15:33:32+01:00</updated>
+  <updated>2015-01-16T15:36:01+01:00</updated>
   <id>http://aurelien-herve.com/</id>
   <author>
     <name><![CDATA[A. Hervé]]></name>
@@ -14,7 +14,7 @@
 
   
   <entry>
-    <title type="html"><![CDATA[building a recommendation engine with ruby]]></title>
+    <title type="html"><![CDATA[Writing a recommendation engine with ruby and mongoid]]></title>
     <link href="http://aurelien-herve.com/blog/2015/01/16/building-a-recommendation-engine-with-ruby/"/>
     <updated>2015-01-16T10:12:33+01:00</updated>
     <id>http://aurelien-herve.com/blog/2015/01/16/building-a-recommendation-engine-with-ruby</id>
