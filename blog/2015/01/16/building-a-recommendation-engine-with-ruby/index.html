@@ -1,0 +1,768 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>building a recommendation engine with ruby - Aurélien Hervé</title>
+  <meta name="author" content="A. Hervé">
+
+  
+  <meta name="description" content="">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://aurelien-herve.com/blog/2015/01/16/building-a-recommendation-engine-with-ruby">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/bootstrap/bootstrap.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/bootstrap/responsive.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/stylesheets/syntax/syntax.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <style type="text/css">
+    body {
+      padding-bottom: 40px;
+    }
+    h1 {
+      margin-bottom: 15px;
+    }
+    img {
+      max-width: 100%;
+    }
+    .sharing, .meta, .pager {
+      margin: 20px 0px 20px 0px;
+    }
+    .page-footer p {
+      text-align: center;
+    }
+  </style>
+  <script src="/javascripts/libs/jquery.js"></script>
+  <script src="/javascripts/libs/modernizr-2.0.js"></script>
+  <script src="/javascripts/libs/bootstrap.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="Aurélien Hervé" type="application/atom+xml">
+  
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-28822787-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://' : 'http://') + 'stats.g.doubleclick.net/dc.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <nav role="navigation"><div class="navbar navbar-inverse">
+  <div class="navbar-inner">
+    <div class="container">
+      <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </a>
+
+      <a class="brand" href="/">Aurélien Hervé</a>
+
+      <div class="nav-collapse">
+        <ul class="nav">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/publications">Conferences & publications</a></li>
+  <li><a href="#" onclick="alert('feel free to drop me a mail ! \n mail @ aurelien-herve.com');">contact</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+
+
+
+        <ul class="nav pull-right" data-subscription="rss">
+          <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+          
+        </ul>
+
+        
+          <form class="pull-right navbar-search" action="http://google.com/search" method="get">
+            <fieldset role="search">
+              <input type="hidden" name="q" value="site:aurelien-herve.com" />
+              <input class="search-query" type="text" name="q" results="0" placeholder="Search"/>
+            </fieldset>
+          </form>
+        
+      </div>
+    </div>
+  </div>
+</div>
+</nav>
+  <div class="container">
+    <div class="row-fluid">
+      
+<article class="hentry span9" role="article">
+
+  
+  <header class="page-header">
+    
+      <h1 class="entry-title">Building a Recommendation Engine With Ruby</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2015-01-16T10:12:33+01:00" pubdate data-updated="true">Jan 16<span>th</span>, 2015</time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><h3>What is this about</h3>
+
+<p>Today we&rsquo;ll learn what&rsquo;s happening in a recommendation engine by building a simple, yet powerful collaborative filtering engine.</p>
+
+<p>Yay !</p>
+
+<!-- more -->
+
+
+<h2>1. What we have</h2>
+
+<p>Let&rsquo;s say we have a music app. We have access to the music our users like, and it&rsquo;d be tremendous to recommend new music to people (please don&rsquo;t steal my idea, I might get rich with this someday).</p>
+
+<p>We&rsquo;ll use mongodb as our database, along with <a href="http://mongoid.org/en/mongoid/index.html">mongoid</a> which I find to be quite awesome.</p>
+
+<p>Allright, let&rsquo;s roll !</p>
+
+<h2>Basic class definitions</h2>
+
+<p>First of all, let&rsquo;s define some <code>User</code> and <code>Artist</code> classes. In our app, a user has a list of liked artists, whereas the artist has a list of likers.</p>
+
+<figure class='code'><figcaption><span>user.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">User</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Document</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:name</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">has_and_belongs_to_many</span> <span class="ss">:liked_artists</span><span class="p">,</span> <span class="n">class_name</span><span class="p">:</span> <span class="s2">&quot;Artist&quot;</span><span class="p">,</span> <span class="n">inverse_of</span><span class="p">:</span> <span class="ss">:likers</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>artist.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Artist</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Document</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:name</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">has_and_belongs_to_many</span> <span class="ss">:likers</span><span class="p">,</span> <span class="n">class_name</span><span class="p">:</span> <span class="s2">&quot;User&quot;</span><span class="p">,</span> <span class="n">inverse_of</span><span class="p">:</span> <span class="ss">:liked_artists</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># add an artist to the list of liked_artists</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">like_artist!</span><span class="p">(</span><span class="n">artist</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">liked_artists</span> <span class="o">&lt;&lt;</span> <span class="n">artist</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>We can use a simple script to load our classes and play with them:</p>
+
+<p><strong>Note:</strong> <em>For better readability I&rsquo;m not including the <code>Gemfile</code>, nor the <code>mongoid.yml</code> file here. A complete example is available to download at the end of this post.</em></p>
+
+<figure class='code'><figcaption><span>demo.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1">#!/usr/bin/env ruby</span>
+</span><span class='line'><span class="c1"># User bundler to install gems</span>
+</span><span class='line'><span class="nb">require</span> <span class="s1">&#39;bundler&#39;</span>
+</span><span class='line'><span class="no">Bundler</span><span class="o">.</span><span class="n">setup</span><span class="p">(</span><span class="ss">:default</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="nb">require</span> <span class="s1">&#39;mongoid&#39;</span>
+</span><span class='line'><span class="nb">require</span> <span class="s1">&#39;./user.rb&#39;</span>
+</span><span class='line'><span class="nb">require</span> <span class="s1">&#39;./artist.rb&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># load mongoid config file</span>
+</span><span class='line'><span class="no">Mongoid</span><span class="o">.</span><span class="n">load!</span><span class="p">(</span><span class="s2">&quot;./mongoid.yml&quot;</span><span class="p">,</span> <span class="ss">:development</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Let&#39;s clean the base, then create some users</span>
+</span><span class='line'><span class="no">User</span><span class="o">.</span><span class="n">destroy_all</span>
+</span><span class='line'><span class="no">User</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="o">[</span>
+</span><span class='line'>  <span class="p">{</span><span class="nb">name</span><span class="p">:</span> <span class="s1">&#39;Alphonse&#39;</span><span class="p">},</span>
+</span><span class='line'>  <span class="p">{</span><span class="nb">name</span><span class="p">:</span> <span class="s1">&#39;Hubert&#39;</span><span class="p">}</span>  <span class="p">,</span>
+</span><span class='line'>  <span class="p">{</span><span class="nb">name</span><span class="p">:</span> <span class="s1">&#39;Penelope&#39;</span><span class="p">},</span>
+</span><span class='line'>  <span class="p">{</span><span class="nb">name</span><span class="p">:</span> <span class="s1">&#39;Henri&#39;</span><span class="p">}</span>   <span class="p">,</span>
+</span><span class='line'>  <span class="p">{</span><span class="nb">name</span><span class="p">:</span> <span class="s1">&#39;Huguette&#39;</span><span class="p">},</span>
+</span><span class='line'><span class="o">]</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Let&#39;s create some artists:</span>
+</span><span class='line'><span class="no">Artist</span><span class="o">.</span><span class="n">destroy_all</span>
+</span><span class='line'><span class="no">Artist</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="o">[</span>
+</span><span class='line'>  <span class="p">{</span><span class="nb">name</span><span class="p">:</span> <span class="s1">&#39;John Coltrane&#39;</span> <span class="p">},</span>
+</span><span class='line'>  <span class="p">{</span><span class="nb">name</span><span class="p">:</span> <span class="s1">&#39;Wayne Shorter&#39;</span> <span class="p">},</span>
+</span><span class='line'>  <span class="p">{</span><span class="nb">name</span><span class="p">:</span> <span class="s1">&#39;McCoy Tyner&#39;</span>   <span class="p">},</span>
+</span><span class='line'>  <span class="p">{</span><span class="nb">name</span><span class="p">:</span> <span class="s1">&#39;Lady Gaga&#39;</span>     <span class="p">},</span>
+</span><span class='line'>  <span class="p">{</span><span class="nb">name</span><span class="p">:</span> <span class="s1">&#39;Franz Schubert&#39;</span><span class="p">},</span>
+</span><span class='line'><span class="o">]</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Did it work?</span>
+</span><span class='line'><span class="nb">puts</span> <span class="no">User</span><span class="o">.</span><span class="n">count</span>   <span class="c1">#=&gt; 5</span>
+</span><span class='line'><span class="nb">puts</span> <span class="no">Artist</span><span class="o">.</span><span class="n">count</span> <span class="c1">#=&gt; 5</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># add a relation:</span>
+</span><span class='line'><span class="no">User</span><span class="o">.</span><span class="n">first</span><span class="o">.</span><span class="n">like_artist!</span><span class="p">(</span><span class="no">Artist</span><span class="o">.</span><span class="n">first</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="nb">puts</span> <span class="no">User</span><span class="o">.</span><span class="n">first</span><span class="o">.</span><span class="n">inspect</span>   <span class="c1">#=&gt; &lt;User _id: 54b8e2bc6168651713000000, name: &quot;Alphonse&quot;, liked_artist_ids: [BSON::ObjectId(&#39;54b8e2bc6168651713050000&#39;)]&gt;</span>
+</span><span class='line'><span class="nb">puts</span> <span class="no">Artist</span><span class="o">.</span><span class="n">first</span><span class="o">.</span><span class="n">inspect</span> <span class="c1">#=&gt; #&lt;Artist _id: 54b8e2bc6168651713050000, name: &quot;John Coltrane&quot;, liker_ids: [BSON::ObjectId(&#39;54b8e2bc6168651713000000&#39;)]&gt;</span>
+</span><span class='line'>
+</span><span class='line'><span class="nb">puts</span> <span class="no">User</span><span class="o">.</span><span class="n">first</span><span class="o">.</span><span class="n">liked_artists</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="o">&amp;</span><span class="ss">:name</span><span class="p">)</span> <span class="c1">#=&gt; John Coltrane</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Allright, everything seems to work just fine. Time for the fancy stuff !</p>
+
+<h2>2. Collaborative filtering</h2>
+
+<h3>Collaborative filtering in a nutshell</h3>
+
+<p>Collaborative filtering is not that difficult to understand:</p>
+
+<ul>
+<li>You like stuff</li>
+<li>There are other people who also like the same stuff</li>
+<li>These very people do like other stuff (that you don&rsquo;t even know about)</li>
+<li>You might want to know about it.</li>
+</ul>
+
+
+<p>Now for the implementation. There is of course a lot of details and variations in the existing algorithms.
+The one we are going to implement is the following (in pseudo-code):</p>
+
+<ul>
+<li>Find every user that share at least one favorite artist with you</li>
+<li>For each found user <code>u</code>:
+
+<ul>
+<li>calculate the number of favorite artists you share. The more artists you share with a user, the more weight we&rsquo;ll had to <em>his recommendation</em>.</li>
+<li>Divide the obtained sum by the total number of artists the user like. We don&rsquo;t want a serial liker to pollute our score and recommend <strong>everything</strong> with too much of a weight. Let&rsquo;s call <code>weight(u)</code> the weight of this user <code>u</code></li>
+<li>for all the artists <code>a</code> the user <code>u</code> like, add <code>weight(u)</code> to our result: <code>result(a) += weight(u))</code></li>
+</ul>
+</li>
+<li>sort the list and get the most recommended artists !</li>
+</ul>
+
+
+<h3>Shall we implement it?</h3>
+
+<p>Yes we can. Let&rsquo;s create a fancy <code>recommended_artists</code> method for the users that we write in a <code>reco</code> module (in rails we would put this module under <code>app/models/concerns/reco.rb</code>) :</p>
+
+<figure class='code'><figcaption><span>user.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;./reco.rb&#39;</span>
+</span><span class='line'><span class="k">class</span> <span class="nc">User</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Document</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="no">Reco</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>reco.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">module</span> <span class="nn">Reco</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># will recommend artists to a user</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">recommendations</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1"># fetch my list of liked artists. We only need their id and liker_ids (not the name, nor anything else)</span>
+</span><span class='line'>    <span class="n">my_artists</span> <span class="o">=</span> <span class="n">liked_artists</span><span class="o">.</span><span class="n">only</span><span class="p">(</span><span class="ss">:id</span><span class="p">,</span> <span class="ss">:liker_ids</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1"># fetch my list of &#39;friends&#39;. Again, we only need id and liked_artist_ids :</span>
+</span><span class='line'>    <span class="n">friends</span> <span class="o">=</span> <span class="no">User</span><span class="o">.</span><span class="n">any_in</span><span class="p">(</span><span class="nb">id</span><span class="p">:</span> <span class="n">my_artists</span><span class="o">.</span><span class="n">distinct</span><span class="p">(</span><span class="ss">:liker_ids</span><span class="p">))</span><span class="o">.</span><span class="n">only</span><span class="p">(</span><span class="ss">:id</span><span class="p">,</span> <span class="ss">:liked_artist_ids</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1"># Initialize the result:</span>
+</span><span class='line'>    <span class="n">reco</span> <span class="o">=</span> <span class="no">Hash</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1"># Let&#39;s roll</span>
+</span><span class='line'>    <span class="n">friends</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">friend</span><span class="o">|</span>
+</span><span class='line'>
+</span><span class='line'>      <span class="c1"># the number of liked artists we share:</span>
+</span><span class='line'>      <span class="n">in_common</span> <span class="o">=</span> <span class="p">(</span><span class="n">friend</span><span class="o">.</span><span class="n">liked_artist_ids</span> <span class="o">&amp;</span> <span class="nb">self</span><span class="o">.</span><span class="n">liked_artist_ids</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>      <span class="c1"># The friend&#39;s weight:</span>
+</span><span class='line'>      <span class="n">w</span> <span class="o">=</span> <span class="n">in_common</span><span class="o">.</span><span class="n">size</span><span class="o">.</span><span class="n">to_f</span> <span class="o">/</span> <span class="n">friend</span><span class="o">.</span><span class="n">liked_artist_ids</span><span class="o">.</span><span class="n">size</span>
+</span><span class='line'>
+</span><span class='line'>      <span class="c1"># Add the recommendations:</span>
+</span><span class='line'>      <span class="p">(</span> <span class="n">friend</span><span class="o">.</span><span class="n">liked_artist_ids</span> <span class="o">-</span> <span class="n">in_common</span><span class="p">)</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">artist_id</span><span class="o">|</span>
+</span><span class='line'>        <span class="n">reco</span><span class="o">[</span><span class="n">artist_id</span><span class="o">]</span> <span class="o">+=</span> <span class="n">w</span>
+</span><span class='line'>      <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1"># find artist names, sort and return in a pretty format:</span>
+</span><span class='line'>    <span class="no">Artist</span><span class="o">.</span><span class="n">any_in</span><span class="p">(</span><span class="nb">id</span><span class="p">:</span> <span class="n">reco</span><span class="o">.</span><span class="n">keys</span><span class="p">)</span>
+</span><span class='line'>    <span class="o">.</span><span class="n">only</span><span class="p">(</span><span class="ss">:id</span><span class="p">,</span> <span class="ss">:name</span><span class="p">)</span>                 <span class="c1">#only name and id here</span>
+</span><span class='line'>    <span class="o">.</span><span class="n">sort_by</span><span class="p">{</span><span class="o">|</span><span class="n">a</span><span class="o">|</span> <span class="n">reco</span><span class="o">[</span><span class="n">a</span><span class="o">.</span><span class="n">id</span><span class="o">]</span><span class="p">}</span>          <span class="c1">#sort by our reco results</span>
+</span><span class='line'>    <span class="o">.</span><span class="n">reverse</span>                          <span class="c1"># higher score first</span>
+</span><span class='line'>    <span class="o">.</span><span class="n">map</span><span class="p">{</span><span class="o">|</span><span class="n">a</span><span class="o">|</span> <span class="o">[</span><span class="n">a</span><span class="p">,</span><span class="n">reco</span><span class="o">[</span><span class="n">a</span><span class="o">.</span><span class="n">id</span><span class="o">].</span><span class="n">round</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">]</span><span class="p">}</span> <span class="c1"># associate record with its score</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Looks nice, how about we try it with a slightly modified script:</p>
+
+<figure class='code'><figcaption><span>demo.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="c1">#!/usr/bin/env ruby</span>
+</span><span class='line'><span class="c1"># User bundler to install gems</span>
+</span><span class='line'><span class="nb">require</span> <span class="s1">&#39;bundler&#39;</span>
+</span><span class='line'><span class="no">Bundler</span><span class="o">.</span><span class="n">setup</span><span class="p">(</span><span class="ss">:default</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="nb">require</span> <span class="s1">&#39;mongoid&#39;</span>
+</span><span class='line'><span class="nb">require</span> <span class="s1">&#39;./user.rb&#39;</span>
+</span><span class='line'><span class="nb">require</span> <span class="s1">&#39;./artist.rb&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># load mongoid config file</span>
+</span><span class='line'><span class="no">Mongoid</span><span class="o">.</span><span class="n">load!</span><span class="p">(</span><span class="s2">&quot;./mongoid.yml&quot;</span><span class="p">,</span> <span class="ss">:development</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Create 100 users, and artists</span>
+</span><span class='line'><span class="no">User</span><span class="o">.</span><span class="n">destroy_all</span>
+</span><span class='line'><span class="no">Artist</span><span class="o">.</span><span class="n">destroy_all</span>
+</span><span class='line'>
+</span><span class='line'><span class="mi">100</span><span class="o">.</span><span class="n">times</span> <span class="k">do</span> <span class="o">|</span><span class="n">i</span><span class="o">|</span>
+</span><span class='line'>  <span class="no">User</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="nb">name</span><span class="p">:</span> <span class="s2">&quot;user_</span><span class="si">#{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span class='line'>  <span class="no">Artist</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="nb">name</span><span class="p">:</span> <span class="s2">&quot;artist_</span><span class="si">#{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Each user like 20 random artists:</span>
+</span><span class='line'><span class="no">User</span><span class="o">.</span><span class="n">each</span> <span class="k">do</span> <span class="o">|</span><span class="n">user</span><span class="o">|</span>
+</span><span class='line'>  <span class="no">Artist</span><span class="o">.</span><span class="n">all</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="o">.</span><span class="n">each</span><span class="p">{</span><span class="o">|</span><span class="n">a</span><span class="o">|</span> <span class="n">user</span><span class="o">.</span><span class="n">like_artist!</span><span class="p">(</span><span class="n">a</span><span class="p">)}</span>
+</span><span class='line'><span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="c1"># Get a recommendation for the first user:</span>
+</span><span class='line'><span class="nb">puts</span> <span class="no">User</span><span class="o">.</span><span class="n">first</span><span class="o">.</span><span class="n">recommendations</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>wich outputs</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="o">[[</span><span class="c1">#&lt;Artist _id: 54b8f9be61686519afc70000, name: &quot;artist_99&quot;, liker_ids: nil&gt;, 7.3],</span>
+</span><span class='line'> <span class="o">[</span><span class="c1">#&lt;Artist _id: 54b8f9be61686519af1d0000, name: &quot;artist_14&quot;, liker_ids: nil&gt;, 1.7],</span>
+</span><span class='line'> <span class="o">[</span><span class="c1">#&lt;Artist _id: 54b8f9be61686519af150000, name: &quot;artist_10&quot;, liker_ids: nil&gt;, 1.7],</span>
+</span><span class='line'> <span class="o">[</span><span class="c1">#&lt;Artist _id: 54b8f9be61686519afc50000, name: &quot;artist_98&quot;, liker_ids: nil&gt;, 1.0],</span>
+</span><span class='line'> <span class="o">[</span><span class="c1">#&lt;Artist _id: 54b8f9be61686519af1b0000, name: &quot;artist_13&quot;, liker_ids: nil&gt;, 0.9],</span>
+</span><span class='line'> <span class="o">[</span><span class="c1">#&lt;Artist _id: 54b8f9be61686519af190000, name: &quot;artist_12&quot;, liker_ids: nil&gt;, 0.9],</span>
+</span><span class='line'> <span class="o">[</span><span class="c1">#&lt;Artist _id: 54b8f9be61686519af170000, name: &quot;artist_11&quot;, liker_ids: nil&gt;, 0.9],</span>
+</span><span class='line'> <span class="o">[</span><span class="c1">#&lt;Artist _id: 54b8f9be61686519af250000, name: &quot;artist_18&quot;, liker_ids: nil&gt;, 0.9],</span>
+</span><span class='line'> <span class="o">[</span><span class="c1">#&lt;Artist _id: 54b8f9be61686519af1f0000, name: &quot;artist_15&quot;, liker_ids: nil&gt;, 0.9],</span>
+</span><span class='line'> <span class="o">[</span><span class="c1">#&lt;Artist _id: 54b8f9be61686519af210000, name: &quot;artist_16&quot;, liker_ids: nil&gt;, 0.9],</span>
+</span><span class='line'> <span class="o">[</span><span class="c1">#&lt;Artist _id: 54b8f9be61686519af230000, name: &quot;artist_17&quot;, liker_ids: nil&gt;, 0.7],</span>
+</span><span class='line'> <span class="o">[</span><span class="c1">#&lt;Artist _id: 54b8f9be61686519afc30000, name: &quot;artist_97&quot;, liker_ids: nil&gt;, 0.2],</span>
+</span><span class='line'> <span class="o">[</span><span class="c1">#&lt;Artist _id: 54b8f9be61686519afb90000, name: &quot;artist_92&quot;, liker_ids: nil&gt;, 0.2],</span>
+</span><span class='line'> <span class="o">[</span><span class="c1">#&lt;Artist _id: 54b8f9be61686519afbb0000, name: &quot;artist_93&quot;, liker_ids: nil&gt;, 0.2],</span>
+</span><span class='line'> <span class="o">[</span><span class="c1">#&lt;Artist _id: 54b8f9be61686519afbd0000, name: &quot;artist_94&quot;, liker_ids: nil&gt;, 0.2],</span>
+</span><span class='line'> <span class="o">[</span><span class="c1">#&lt;Artist _id: 54b8f9be61686519afbf0000, name: &quot;artist_95&quot;, liker_ids: nil&gt;, 0.2],</span>
+</span><span class='line'> <span class="o">[</span><span class="c1">#&lt;Artist _id: 54b8f9be61686519afc10000, name: &quot;artist_96&quot;, liker_ids: nil&gt;, 0.2]]</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><img class="right" src="/images/happy_people.gif"></p>
+
+<p>Look Mom, it&rsquo;s working !!!!</p>
+
+<p><a href="/assets/reco_engine.tgz">Download the sources</a></p>
+
+<h3>3. Performances / Why it&rsquo;s awesome</h3>
+
+<p>Let&rsquo;s take a closer look at our algorithm complexity here, and explain how we take advantage of the mongo&rsquo;s NoSQL structure.</p>
+
+<p>Unlike when dealing with a SQL database, we have deliberately denormalized our data. When we open a <code>User</code> document, we can see an array of ids that represent the list of his/her favorite artists. When opening the corresponding <code>Artist</code> document, whe can see a list of <code>liker_ids</code> that correspond to the artist&rsquo;s likers.</p>
+
+<p>Now if we look at our algorithm in terms of requests, what we actually are doing is:</p>
+
+<ul>
+<li>Open the current_user document. When recommending for me, this represent my profile.</li>
+<li>In my document I find an array of artists. No additional query here.</li>
+<li>Perform one db query to obtain all the <code>likers</code> of the artists I like with <code>friends = User.any_in(id: my_artists.distinct(:liker_ids)).only(:id, :liked_artist_ids)</code>. Note that we find the <code>Artist</code> documents by their ids, then simply concatenate their respective <code>liker_ids</code> arrays. No need to index any relation table, or foreign key. Furthermore, from this single request we already know what our &lsquo;friends&rsquo; like, since every friend document contains a <code>liked_artist_ids</code> array.</li>
+<li>At this stage we already nailed down the interesting users among our database, and we can browse through their liked artists without performing any additional query.</li>
+</ul>
+
+
+<p>This pretty much implies that the complexity of our algorithm doesn&rsquo;t depend on the number of users, but rather to the interconnection level of our graph.</p>
+
+<p>In other words: if we add billions of user that doesn&rsquo;t share any liked artist with you, then your recommendation query would be totally unaffected. But if everybody loved the same artists, then we&rsquo;d have some trouble.</p>
+
+<p>Another very good example of such an algorithm is the &ldquo;friend recommender&rdquo;. Having billions of users where evey user have an average of 50 friends is a piece of cake to deal with. But of course, if a single user would become the friend of <strong>everyone</strong>, then you&rsquo;d simply have to browse the whole database to find your friend&rsquo;s friends. In a social graph this is very unlikely to happen: I&rsquo;m way too hipster to befriend such a guy.</p>
+
+<p>I&rsquo;ve slightly modified the demo script to <code>big_reco.rb</code>. We can see what happens with 100k users, that randomly like 10 artists each, among a 1k artists database:</p>
+
+<p>100,000 users, 1,000 artists and 10 likes per user:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">u</span> <span class="o">=</span> <span class="no">User</span><span class="o">.</span><span class="n">all</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">first</span>
+</span><span class='line'><span class="nb">puts</span> <span class="no">User</span><span class="o">.</span><span class="n">count</span> <span class="c1">#=&gt; 100000</span>
+</span><span class='line'><span class="nb">puts</span> <span class="no">Benchmark</span><span class="o">.</span><span class="n">measure</span><span class="p">{</span> <span class="n">u</span><span class="o">.</span><span class="n">recommendations</span><span class="p">}</span> <span class="c1">#=&gt; 1.060000   0.000000   1.060000 (  1.127213)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>As you can see this is still pretty fast and run in about a second on an average laptop. Actually, preparing the database was hat took a while, so I didn&rsquo;t make many more examples. Feel free to send me some if you are brave enough to try :)</p>
+
+<p>Note that even with millions of users, a proper cache structure along with background jobs can garanty recommendations that take less than <em>300ms</em>. Let me know if you&rsquo;re intested, I might consider writing a tuto about how to design such a background engine !</p>
+
+<h3>Conclusion</h3>
+
+<p>Thanks for reading, I hope this was of some interest for you, feel free to ask any question or to share your feedback !</p>
+
+<p><a href="/assets/reco_engine.tgz">Download the sources</a></p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">A. Hervé</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2015-01-16T10:12:33+01:00" pubdate data-updated="true">Jan 16<span>th</span>, 2015</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/algorithm/'>algorithm</a>, <a class='category' href='/blog/categories/collaborative-filtering/'>collaborative filtering</a>, <a class='category' href='/blog/categories/complexity/'>complexity</a>, <a class='category' href='/blog/categories/mongodb/'>mongodb</a>, <a class='category' href='/blog/categories/mongoid/'>mongoid</a>, <a class='category' href='/blog/categories/ruby/'>ruby</a>, <a class='category' href='/blog/categories/tutorial/'>tutorial</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://aurelien-herve.com/blog/2015/01/16/building-a-recommendation-engine-with-ruby/" data-via="aurel_herve" data-counturl="http://aurelien-herve.com/blog/2015/01/16/building-a-recommendation-engine-with-ruby/" >Tweet</a>
+  
+  
+  
+    <div class="fb-like" data-send="true" data-width="450" data-show-faces="false"></div>
+  
+</div>
+
+    
+    
+    <section>
+      <h1>Comments</h1>
+      <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+    </section>
+    
+    <ul class="pager">
+      
+      <li class="previous"><a class="basic-alignment left"
+        href="/blog/2015/01/14/big-data-with-hadoop-stream-and-ruby/" title="Previous Post:
+        Big data with hadoop stream and ruby (and not even one line of java)">&laquo; Big data with hadoop stream and ruby (and not even one line of java)</a></li>
+      
+      <li><a href="/blog/archives">Blog Archives</a></li>
+      
+    </ul>
+  </footer>
+</article>
+
+<aside class="sidebar-nav span3">
+  
+    <section class="well">
+  <ul id="recent_posts" class="nav nav-list">
+    <li class="nav-header">Recent Posts</li>
+    
+      <li class="post">
+        <a href="/blog/2015/01/16/building-a-recommendation-engine-with-ruby/">building a recommendation engine with ruby</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2015/01/14/big-data-with-hadoop-stream-and-ruby/">Big data with hadoop stream and ruby (and not even one line of java)</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/10/14/advanced-api-option-parser-for-grape/">Building an advanced api option parser for grape</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/05/23/how-to-migrate-your-django-users-to-a-new-rails-application/">how to migrate your django users to a new rails application</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2014/02/27/some-cool-functional-programming-with-ruby/">Having fun with functional programming in ruby</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section class="well">
+  <ul id="gh_repos" class="nav">
+    <li class="nav-header">GitHub Repos</li>
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/aherve">@aherve</a> on GitHub
+  
+  <script type="text/javascript">
+    $(document).ready(function(){
+        github.showRepos({
+            user: 'aherve',
+            count: 3,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/asides/github.js" type="text/javascript"> </script>
+</section>
+
+<a class="twitter-timeline" href="https://twitter.com/aurel_herve" data-widget-id="439334447087747072">Tweets by @aurel_herve</a>
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+"://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo" class="page-footer"><hr>
+<p>
+  Copyright &copy; 2015 - A. Hervé -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'aherve';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://aurelien-herve.com/blog/2015/01/16/building-a-recommendation-engine-with-ruby/';
+        var disqus_url = 'http://aurelien-herve.com/blog/2015/01/16/building-a-recommendation-engine-with-ruby/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) {return;}
+  js = d.createElement(s); js.id = id;
+  js.src = "//connect.facebook.net/en_US/all.js#appId=212934732101925&xfbml=1";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

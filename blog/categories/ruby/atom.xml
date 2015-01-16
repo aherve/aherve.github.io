@@ -4,7 +4,7 @@
   <title><![CDATA[Category: ruby | Aurélien Hervé]]></title>
   <link href="http://aurelien-herve.com/blog/categories/ruby/atom.xml" rel="self"/>
   <link href="http://aurelien-herve.com/"/>
-  <updated>2015-01-14T18:58:11+01:00</updated>
+  <updated>2015-01-16T15:33:32+01:00</updated>
   <id>http://aurelien-herve.com/</id>
   <author>
     <name><![CDATA[A. Hervé]]></name>
@@ -12,6 +12,321 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[building a recommendation engine with ruby]]></title>
+    <link href="http://aurelien-herve.com/blog/2015/01/16/building-a-recommendation-engine-with-ruby/"/>
+    <updated>2015-01-16T10:12:33+01:00</updated>
+    <id>http://aurelien-herve.com/blog/2015/01/16/building-a-recommendation-engine-with-ruby</id>
+    <content type="html"><![CDATA[<h3>What is this about</h3>
+
+<p>Today we&rsquo;ll learn what&rsquo;s happening in a recommendation engine by building a simple, yet powerful collaborative filtering engine.</p>
+
+<p>Yay !</p>
+
+<!-- more -->
+
+
+<h2>1. What we have</h2>
+
+<p>Let&rsquo;s say we have a music app. We have access to the music our users like, and it&rsquo;d be tremendous to recommend new music to people (please don&rsquo;t steal my idea, I might get rich with this someday).</p>
+
+<p>We&rsquo;ll use mongodb as our database, along with <a href="http://mongoid.org/en/mongoid/index.html">mongoid</a> which I find to be quite awesome.</p>
+
+<p>Allright, let&rsquo;s roll !</p>
+
+<h2>Basic class definitions</h2>
+
+<p>First of all, let&rsquo;s define some <code>User</code> and <code>Artist</code> classes. In our app, a user has a list of liked artists, whereas the artist has a list of likers.</p>
+
+<p>```ruby user.rb
+class User
+  include Mongoid::Document</p>
+
+<p>  field :name</p>
+
+<p>  has_and_belongs_to_many :liked_artists, class_name: &ldquo;Artist&rdquo;, inverse_of: :likers</p>
+
+<p>end
+```</p>
+
+<p>```ruby artist.rb
+class Artist
+  include Mongoid::Document</p>
+
+<p>  field :name</p>
+
+<p>  has_and_belongs_to_many :likers, class_name: &ldquo;User&rdquo;, inverse_of: :liked_artists</p>
+
+<p>  # add an artist to the list of liked_artists
+  def like_artist!(artist)</p>
+
+<pre><code>liked_artists &lt;&lt; artist
+</code></pre>
+
+<p>  end</p>
+
+<p>end
+```</p>
+
+<p>We can use a simple script to load our classes and play with them:</p>
+
+<p><strong>Note:</strong> <em>For better readability I&rsquo;m not including the <code>Gemfile</code>, nor the <code>mongoid.yml</code> file here. A complete example is available to download at the end of this post.</em></p>
+
+<p>```ruby demo.rb</p>
+
+<h1>!/usr/bin/env ruby</h1>
+
+<h1>User bundler to install gems</h1>
+
+<p>require &lsquo;bundler&rsquo;
+Bundler.setup(:default)</p>
+
+<p>require &lsquo;mongoid&rsquo;
+require &lsquo;./user.rb&rsquo;
+require &lsquo;./artist.rb&rsquo;</p>
+
+<h1>load mongoid config file</h1>
+
+<p>Mongoid.load!(&ldquo;./mongoid.yml&rdquo;, :development)</p>
+
+<h1>Let&rsquo;s clean the base, then create some users</h1>
+
+<p>User.destroy_all
+User.create([
+  {name: &lsquo;Alphonse&rsquo;},
+  {name: &lsquo;Hubert&rsquo;}  ,
+  {name: &lsquo;Penelope&rsquo;},
+  {name: &lsquo;Henri&rsquo;}   ,
+  {name: &lsquo;Huguette&rsquo;},
+])</p>
+
+<h1>Let&rsquo;s create some artists:</h1>
+
+<p>Artist.destroy_all
+Artist.create([
+  {name: &lsquo;John Coltrane&rsquo; },
+  {name: &lsquo;Wayne Shorter&rsquo; },
+  {name: &lsquo;McCoy Tyner&rsquo;   },
+  {name: &lsquo;Lady Gaga&rsquo;     },
+  {name: &lsquo;Franz Schubert&rsquo;},
+])</p>
+
+<h1>Did it work?</h1>
+
+<p>puts User.count   #=> 5
+puts Artist.count #=> 5</p>
+
+<h1>add a relation:</h1>
+
+<p>User.first.like_artist!(Artist.first)</p>
+
+<p>puts User.first.inspect   #=> <User _id: 54b8e2bc6168651713000000, name: "Alphonse", liked_artist_ids: [BSON::ObjectId('54b8e2bc6168651713050000')]>
+puts Artist.first.inspect #=> #<Artist _id: 54b8e2bc6168651713050000, name: "John Coltrane", liker_ids: [BSON::ObjectId('54b8e2bc6168651713000000')]></p>
+
+<p>puts User.first.liked_artists.map(&amp;:name) #=> John Coltrane
+```</p>
+
+<p>Allright, everything seems to work just fine. Time for the fancy stuff !</p>
+
+<h2>2. Collaborative filtering</h2>
+
+<h3>Collaborative filtering in a nutshell</h3>
+
+<p>Collaborative filtering is not that difficult to understand:</p>
+
+<ul>
+<li>You like stuff</li>
+<li>There are other people who also like the same stuff</li>
+<li>These very people do like other stuff (that you don&rsquo;t even know about)</li>
+<li>You might want to know about it.</li>
+</ul>
+
+
+<p>Now for the implementation. There is of course a lot of details and variations in the existing algorithms.
+The one we are going to implement is the following (in pseudo-code):</p>
+
+<ul>
+<li>Find every user that share at least one favorite artist with you</li>
+<li>For each found user <code>u</code>:
+
+<ul>
+<li>calculate the number of favorite artists you share. The more artists you share with a user, the more weight we&rsquo;ll had to <em>his recommendation</em>.</li>
+<li>Divide the obtained sum by the total number of artists the user like. We don&rsquo;t want a serial liker to pollute our score and recommend <strong>everything</strong> with too much of a weight. Let&rsquo;s call <code>weight(u)</code> the weight of this user <code>u</code></li>
+<li>for all the artists <code>a</code> the user <code>u</code> like, add <code>weight(u)</code> to our result: <code>result(a) += weight(u))</code></li>
+</ul>
+</li>
+<li>sort the list and get the most recommended artists !</li>
+</ul>
+
+
+<h3>Shall we implement it?</h3>
+
+<p>Yes we can. Let&rsquo;s create a fancy <code>recommended_artists</code> method for the users that we write in a <code>reco</code> module (in rails we would put this module under <code>app/models/concerns/reco.rb</code>) :</p>
+
+<p>```ruby user.rb
+require &lsquo;./reco.rb&rsquo;
+class User
+  include Mongoid::Document
+  include Reco</p>
+
+<p>  &hellip;
+```</p>
+
+<p>```ruby reco.rb
+module Reco</p>
+
+<p>  # will recommend artists to a user
+  def recommendations</p>
+
+<pre><code># fetch my list of liked artists. We only need their id and liker_ids (not the name, nor anything else)
+my_artists = liked_artists.only(:id, :liker_ids)
+
+# fetch my list of 'friends'. Again, we only need id and liked_artist_ids :
+friends = User.any_in(id: my_artists.distinct(:liker_ids)).only(:id, :liked_artist_ids)
+
+# Initialize the result:
+reco = Hash.new(0)
+
+# Let's roll
+friends.each do |friend|
+
+  # the number of liked artists we share:
+  in_common = (friend.liked_artist_ids &amp; self.liked_artist_ids)
+
+  # The friend's weight:
+  w = in_common.size.to_f / friend.liked_artist_ids.size
+
+  # Add the recommendations:
+  ( friend.liked_artist_ids - in_common).each do |artist_id|
+    reco[artist_id] += w
+  end
+
+end
+
+# find artist names, sort and return in a pretty format:
+Artist.any_in(id: reco.keys)
+.only(:id, :name)                 #only name and id here
+.sort_by{|a| reco[a.id]}          #sort by our reco results
+.reverse                          # higher score first
+.map{|a| [a,reco[a.id].round(2)]} # associate record with its score
+</code></pre>
+
+<p>  end</p>
+
+<p>end
+```</p>
+
+<p>Looks nice, how about we try it with a slightly modified script:</p>
+
+<p>```ruby demo.rb</p>
+
+<h1>!/usr/bin/env ruby</h1>
+
+<h1>User bundler to install gems</h1>
+
+<p>require &lsquo;bundler&rsquo;
+Bundler.setup(:default)</p>
+
+<p>require &lsquo;mongoid&rsquo;
+require &lsquo;./user.rb&rsquo;
+require &lsquo;./artist.rb&rsquo;</p>
+
+<h1>load mongoid config file</h1>
+
+<p>Mongoid.load!(&ldquo;./mongoid.yml&rdquo;, :development)</p>
+
+<h1>Create 100 users, and artists</h1>
+
+<p>User.destroy_all
+Artist.destroy_all</p>
+
+<p>100.times do |i|
+  User.create(name: &ldquo;user<em>#{i}&rdquo;)
+  Artist.create(name: &ldquo;artist</em>#{i}&rdquo;)
+end</p>
+
+<h1>Each user like 20 random artists:</h1>
+
+<p>User.each do |user|
+  Artist.all.take(10).each{|a| user.like_artist!(a)}
+end</p>
+
+<h1>Get a recommendation for the first user:</h1>
+
+<p>puts User.first.recommendations
+```</p>
+
+<p>wich outputs</p>
+
+<p><code>ruby
+[[#&lt;Artist _id: 54b8f9be61686519afc70000, name: "artist_99", liker_ids: nil&gt;, 7.3],
+ [#&lt;Artist _id: 54b8f9be61686519af1d0000, name: "artist_14", liker_ids: nil&gt;, 1.7],
+ [#&lt;Artist _id: 54b8f9be61686519af150000, name: "artist_10", liker_ids: nil&gt;, 1.7],
+ [#&lt;Artist _id: 54b8f9be61686519afc50000, name: "artist_98", liker_ids: nil&gt;, 1.0],
+ [#&lt;Artist _id: 54b8f9be61686519af1b0000, name: "artist_13", liker_ids: nil&gt;, 0.9],
+ [#&lt;Artist _id: 54b8f9be61686519af190000, name: "artist_12", liker_ids: nil&gt;, 0.9],
+ [#&lt;Artist _id: 54b8f9be61686519af170000, name: "artist_11", liker_ids: nil&gt;, 0.9],
+ [#&lt;Artist _id: 54b8f9be61686519af250000, name: "artist_18", liker_ids: nil&gt;, 0.9],
+ [#&lt;Artist _id: 54b8f9be61686519af1f0000, name: "artist_15", liker_ids: nil&gt;, 0.9],
+ [#&lt;Artist _id: 54b8f9be61686519af210000, name: "artist_16", liker_ids: nil&gt;, 0.9],
+ [#&lt;Artist _id: 54b8f9be61686519af230000, name: "artist_17", liker_ids: nil&gt;, 0.7],
+ [#&lt;Artist _id: 54b8f9be61686519afc30000, name: "artist_97", liker_ids: nil&gt;, 0.2],
+ [#&lt;Artist _id: 54b8f9be61686519afb90000, name: "artist_92", liker_ids: nil&gt;, 0.2],
+ [#&lt;Artist _id: 54b8f9be61686519afbb0000, name: "artist_93", liker_ids: nil&gt;, 0.2],
+ [#&lt;Artist _id: 54b8f9be61686519afbd0000, name: "artist_94", liker_ids: nil&gt;, 0.2],
+ [#&lt;Artist _id: 54b8f9be61686519afbf0000, name: "artist_95", liker_ids: nil&gt;, 0.2],
+ [#&lt;Artist _id: 54b8f9be61686519afc10000, name: "artist_96", liker_ids: nil&gt;, 0.2]]
+</code></p>
+
+<p><img class="right" src="/images/happy_people.gif"></p>
+
+<p>Look Mom, it&rsquo;s working !!!!</p>
+
+<p><a href="/assets/reco_engine.tgz">Download the sources</a></p>
+
+<h3>3. Performances / Why it&rsquo;s awesome</h3>
+
+<p>Let&rsquo;s take a closer look at our algorithm complexity here, and explain how we take advantage of the mongo&rsquo;s NoSQL structure.</p>
+
+<p>Unlike when dealing with a SQL database, we have deliberately denormalized our data. When we open a <code>User</code> document, we can see an array of ids that represent the list of his/her favorite artists. When opening the corresponding <code>Artist</code> document, whe can see a list of <code>liker_ids</code> that correspond to the artist&rsquo;s likers.</p>
+
+<p>Now if we look at our algorithm in terms of requests, what we actually are doing is:</p>
+
+<ul>
+<li>Open the current_user document. When recommending for me, this represent my profile.</li>
+<li>In my document I find an array of artists. No additional query here.</li>
+<li>Perform one db query to obtain all the <code>likers</code> of the artists I like with <code>friends = User.any_in(id: my_artists.distinct(:liker_ids)).only(:id, :liked_artist_ids)</code>. Note that we find the <code>Artist</code> documents by their ids, then simply concatenate their respective <code>liker_ids</code> arrays. No need to index any relation table, or foreign key. Furthermore, from this single request we already know what our &lsquo;friends&rsquo; like, since every friend document contains a <code>liked_artist_ids</code> array.</li>
+<li>At this stage we already nailed down the interesting users among our database, and we can browse through their liked artists without performing any additional query.</li>
+</ul>
+
+
+<p>This pretty much implies that the complexity of our algorithm doesn&rsquo;t depend on the number of users, but rather to the interconnection level of our graph.</p>
+
+<p>In other words: if we add billions of user that doesn&rsquo;t share any liked artist with you, then your recommendation query would be totally unaffected. But if everybody loved the same artists, then we&rsquo;d have some trouble.</p>
+
+<p>Another very good example of such an algorithm is the &ldquo;friend recommender&rdquo;. Having billions of users where evey user have an average of 50 friends is a piece of cake to deal with. But of course, if a single user would become the friend of <strong>everyone</strong>, then you&rsquo;d simply have to browse the whole database to find your friend&rsquo;s friends. In a social graph this is very unlikely to happen: I&rsquo;m way too hipster to befriend such a guy.</p>
+
+<p>I&rsquo;ve slightly modified the demo script to <code>big_reco.rb</code>. We can see what happens with 100k users, that randomly like 10 artists each, among a 1k artists database:</p>
+
+<p>100,000 users, 1,000 artists and 10 likes per user:
+<code>ruby
+u = User.all.sample(1).first
+puts User.count #=&gt; 100000
+puts Benchmark.measure{ u.recommendations} #=&gt; 1.060000   0.000000   1.060000 (  1.127213)
+</code></p>
+
+<p>As you can see this is still pretty fast and run in about a second on an average laptop. Actually, preparing the database was hat took a while, so I didn&rsquo;t make many more examples. Feel free to send me some if you are brave enough to try :)</p>
+
+<p>Note that even with millions of users, a proper cache structure along with background jobs can garanty recommendations that take less than <em>300ms</em>. Let me know if you&rsquo;re intested, I might consider writing a tuto about how to design such a background engine !</p>
+
+<h3>Conclusion</h3>
+
+<p>Thanks for reading, I hope this was of some interest for you, feel free to ask any question or to share your feedback !</p>
+
+<p><a href="/assets/reco_engine.tgz">Download the sources</a></p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Big data with hadoop stream and ruby (and not even one line of java)]]></title>

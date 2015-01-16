@@ -1,0 +1,856 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: tutorial | Aurélien Hervé]]></title>
+  <link href="http://aurelien-herve.com/blog/categories/tutorial/atom.xml" rel="self"/>
+  <link href="http://aurelien-herve.com/"/>
+  <updated>2015-01-16T15:33:32+01:00</updated>
+  <id>http://aurelien-herve.com/</id>
+  <author>
+    <name><![CDATA[A. Hervé]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[building a recommendation engine with ruby]]></title>
+    <link href="http://aurelien-herve.com/blog/2015/01/16/building-a-recommendation-engine-with-ruby/"/>
+    <updated>2015-01-16T10:12:33+01:00</updated>
+    <id>http://aurelien-herve.com/blog/2015/01/16/building-a-recommendation-engine-with-ruby</id>
+    <content type="html"><![CDATA[<h3>What is this about</h3>
+
+<p>Today we&rsquo;ll learn what&rsquo;s happening in a recommendation engine by building a simple, yet powerful collaborative filtering engine.</p>
+
+<p>Yay !</p>
+
+<!-- more -->
+
+
+<h2>1. What we have</h2>
+
+<p>Let&rsquo;s say we have a music app. We have access to the music our users like, and it&rsquo;d be tremendous to recommend new music to people (please don&rsquo;t steal my idea, I might get rich with this someday).</p>
+
+<p>We&rsquo;ll use mongodb as our database, along with <a href="http://mongoid.org/en/mongoid/index.html">mongoid</a> which I find to be quite awesome.</p>
+
+<p>Allright, let&rsquo;s roll !</p>
+
+<h2>Basic class definitions</h2>
+
+<p>First of all, let&rsquo;s define some <code>User</code> and <code>Artist</code> classes. In our app, a user has a list of liked artists, whereas the artist has a list of likers.</p>
+
+<p>```ruby user.rb
+class User
+  include Mongoid::Document</p>
+
+<p>  field :name</p>
+
+<p>  has_and_belongs_to_many :liked_artists, class_name: &ldquo;Artist&rdquo;, inverse_of: :likers</p>
+
+<p>end
+```</p>
+
+<p>```ruby artist.rb
+class Artist
+  include Mongoid::Document</p>
+
+<p>  field :name</p>
+
+<p>  has_and_belongs_to_many :likers, class_name: &ldquo;User&rdquo;, inverse_of: :liked_artists</p>
+
+<p>  # add an artist to the list of liked_artists
+  def like_artist!(artist)</p>
+
+<pre><code>liked_artists &lt;&lt; artist
+</code></pre>
+
+<p>  end</p>
+
+<p>end
+```</p>
+
+<p>We can use a simple script to load our classes and play with them:</p>
+
+<p><strong>Note:</strong> <em>For better readability I&rsquo;m not including the <code>Gemfile</code>, nor the <code>mongoid.yml</code> file here. A complete example is available to download at the end of this post.</em></p>
+
+<p>```ruby demo.rb</p>
+
+<h1>!/usr/bin/env ruby</h1>
+
+<h1>User bundler to install gems</h1>
+
+<p>require &lsquo;bundler&rsquo;
+Bundler.setup(:default)</p>
+
+<p>require &lsquo;mongoid&rsquo;
+require &lsquo;./user.rb&rsquo;
+require &lsquo;./artist.rb&rsquo;</p>
+
+<h1>load mongoid config file</h1>
+
+<p>Mongoid.load!(&ldquo;./mongoid.yml&rdquo;, :development)</p>
+
+<h1>Let&rsquo;s clean the base, then create some users</h1>
+
+<p>User.destroy_all
+User.create([
+  {name: &lsquo;Alphonse&rsquo;},
+  {name: &lsquo;Hubert&rsquo;}  ,
+  {name: &lsquo;Penelope&rsquo;},
+  {name: &lsquo;Henri&rsquo;}   ,
+  {name: &lsquo;Huguette&rsquo;},
+])</p>
+
+<h1>Let&rsquo;s create some artists:</h1>
+
+<p>Artist.destroy_all
+Artist.create([
+  {name: &lsquo;John Coltrane&rsquo; },
+  {name: &lsquo;Wayne Shorter&rsquo; },
+  {name: &lsquo;McCoy Tyner&rsquo;   },
+  {name: &lsquo;Lady Gaga&rsquo;     },
+  {name: &lsquo;Franz Schubert&rsquo;},
+])</p>
+
+<h1>Did it work?</h1>
+
+<p>puts User.count   #=> 5
+puts Artist.count #=> 5</p>
+
+<h1>add a relation:</h1>
+
+<p>User.first.like_artist!(Artist.first)</p>
+
+<p>puts User.first.inspect   #=> <User _id: 54b8e2bc6168651713000000, name: "Alphonse", liked_artist_ids: [BSON::ObjectId('54b8e2bc6168651713050000')]>
+puts Artist.first.inspect #=> #<Artist _id: 54b8e2bc6168651713050000, name: "John Coltrane", liker_ids: [BSON::ObjectId('54b8e2bc6168651713000000')]></p>
+
+<p>puts User.first.liked_artists.map(&amp;:name) #=> John Coltrane
+```</p>
+
+<p>Allright, everything seems to work just fine. Time for the fancy stuff !</p>
+
+<h2>2. Collaborative filtering</h2>
+
+<h3>Collaborative filtering in a nutshell</h3>
+
+<p>Collaborative filtering is not that difficult to understand:</p>
+
+<ul>
+<li>You like stuff</li>
+<li>There are other people who also like the same stuff</li>
+<li>These very people do like other stuff (that you don&rsquo;t even know about)</li>
+<li>You might want to know about it.</li>
+</ul>
+
+
+<p>Now for the implementation. There is of course a lot of details and variations in the existing algorithms.
+The one we are going to implement is the following (in pseudo-code):</p>
+
+<ul>
+<li>Find every user that share at least one favorite artist with you</li>
+<li>For each found user <code>u</code>:
+
+<ul>
+<li>calculate the number of favorite artists you share. The more artists you share with a user, the more weight we&rsquo;ll had to <em>his recommendation</em>.</li>
+<li>Divide the obtained sum by the total number of artists the user like. We don&rsquo;t want a serial liker to pollute our score and recommend <strong>everything</strong> with too much of a weight. Let&rsquo;s call <code>weight(u)</code> the weight of this user <code>u</code></li>
+<li>for all the artists <code>a</code> the user <code>u</code> like, add <code>weight(u)</code> to our result: <code>result(a) += weight(u))</code></li>
+</ul>
+</li>
+<li>sort the list and get the most recommended artists !</li>
+</ul>
+
+
+<h3>Shall we implement it?</h3>
+
+<p>Yes we can. Let&rsquo;s create a fancy <code>recommended_artists</code> method for the users that we write in a <code>reco</code> module (in rails we would put this module under <code>app/models/concerns/reco.rb</code>) :</p>
+
+<p>```ruby user.rb
+require &lsquo;./reco.rb&rsquo;
+class User
+  include Mongoid::Document
+  include Reco</p>
+
+<p>  &hellip;
+```</p>
+
+<p>```ruby reco.rb
+module Reco</p>
+
+<p>  # will recommend artists to a user
+  def recommendations</p>
+
+<pre><code># fetch my list of liked artists. We only need their id and liker_ids (not the name, nor anything else)
+my_artists = liked_artists.only(:id, :liker_ids)
+
+# fetch my list of 'friends'. Again, we only need id and liked_artist_ids :
+friends = User.any_in(id: my_artists.distinct(:liker_ids)).only(:id, :liked_artist_ids)
+
+# Initialize the result:
+reco = Hash.new(0)
+
+# Let's roll
+friends.each do |friend|
+
+  # the number of liked artists we share:
+  in_common = (friend.liked_artist_ids &amp; self.liked_artist_ids)
+
+  # The friend's weight:
+  w = in_common.size.to_f / friend.liked_artist_ids.size
+
+  # Add the recommendations:
+  ( friend.liked_artist_ids - in_common).each do |artist_id|
+    reco[artist_id] += w
+  end
+
+end
+
+# find artist names, sort and return in a pretty format:
+Artist.any_in(id: reco.keys)
+.only(:id, :name)                 #only name and id here
+.sort_by{|a| reco[a.id]}          #sort by our reco results
+.reverse                          # higher score first
+.map{|a| [a,reco[a.id].round(2)]} # associate record with its score
+</code></pre>
+
+<p>  end</p>
+
+<p>end
+```</p>
+
+<p>Looks nice, how about we try it with a slightly modified script:</p>
+
+<p>```ruby demo.rb</p>
+
+<h1>!/usr/bin/env ruby</h1>
+
+<h1>User bundler to install gems</h1>
+
+<p>require &lsquo;bundler&rsquo;
+Bundler.setup(:default)</p>
+
+<p>require &lsquo;mongoid&rsquo;
+require &lsquo;./user.rb&rsquo;
+require &lsquo;./artist.rb&rsquo;</p>
+
+<h1>load mongoid config file</h1>
+
+<p>Mongoid.load!(&ldquo;./mongoid.yml&rdquo;, :development)</p>
+
+<h1>Create 100 users, and artists</h1>
+
+<p>User.destroy_all
+Artist.destroy_all</p>
+
+<p>100.times do |i|
+  User.create(name: &ldquo;user<em>#{i}&rdquo;)
+  Artist.create(name: &ldquo;artist</em>#{i}&rdquo;)
+end</p>
+
+<h1>Each user like 20 random artists:</h1>
+
+<p>User.each do |user|
+  Artist.all.take(10).each{|a| user.like_artist!(a)}
+end</p>
+
+<h1>Get a recommendation for the first user:</h1>
+
+<p>puts User.first.recommendations
+```</p>
+
+<p>wich outputs</p>
+
+<p><code>ruby
+[[#&lt;Artist _id: 54b8f9be61686519afc70000, name: "artist_99", liker_ids: nil&gt;, 7.3],
+ [#&lt;Artist _id: 54b8f9be61686519af1d0000, name: "artist_14", liker_ids: nil&gt;, 1.7],
+ [#&lt;Artist _id: 54b8f9be61686519af150000, name: "artist_10", liker_ids: nil&gt;, 1.7],
+ [#&lt;Artist _id: 54b8f9be61686519afc50000, name: "artist_98", liker_ids: nil&gt;, 1.0],
+ [#&lt;Artist _id: 54b8f9be61686519af1b0000, name: "artist_13", liker_ids: nil&gt;, 0.9],
+ [#&lt;Artist _id: 54b8f9be61686519af190000, name: "artist_12", liker_ids: nil&gt;, 0.9],
+ [#&lt;Artist _id: 54b8f9be61686519af170000, name: "artist_11", liker_ids: nil&gt;, 0.9],
+ [#&lt;Artist _id: 54b8f9be61686519af250000, name: "artist_18", liker_ids: nil&gt;, 0.9],
+ [#&lt;Artist _id: 54b8f9be61686519af1f0000, name: "artist_15", liker_ids: nil&gt;, 0.9],
+ [#&lt;Artist _id: 54b8f9be61686519af210000, name: "artist_16", liker_ids: nil&gt;, 0.9],
+ [#&lt;Artist _id: 54b8f9be61686519af230000, name: "artist_17", liker_ids: nil&gt;, 0.7],
+ [#&lt;Artist _id: 54b8f9be61686519afc30000, name: "artist_97", liker_ids: nil&gt;, 0.2],
+ [#&lt;Artist _id: 54b8f9be61686519afb90000, name: "artist_92", liker_ids: nil&gt;, 0.2],
+ [#&lt;Artist _id: 54b8f9be61686519afbb0000, name: "artist_93", liker_ids: nil&gt;, 0.2],
+ [#&lt;Artist _id: 54b8f9be61686519afbd0000, name: "artist_94", liker_ids: nil&gt;, 0.2],
+ [#&lt;Artist _id: 54b8f9be61686519afbf0000, name: "artist_95", liker_ids: nil&gt;, 0.2],
+ [#&lt;Artist _id: 54b8f9be61686519afc10000, name: "artist_96", liker_ids: nil&gt;, 0.2]]
+</code></p>
+
+<p><img class="right" src="/images/happy_people.gif"></p>
+
+<p>Look Mom, it&rsquo;s working !!!!</p>
+
+<p><a href="/assets/reco_engine.tgz">Download the sources</a></p>
+
+<h3>3. Performances / Why it&rsquo;s awesome</h3>
+
+<p>Let&rsquo;s take a closer look at our algorithm complexity here, and explain how we take advantage of the mongo&rsquo;s NoSQL structure.</p>
+
+<p>Unlike when dealing with a SQL database, we have deliberately denormalized our data. When we open a <code>User</code> document, we can see an array of ids that represent the list of his/her favorite artists. When opening the corresponding <code>Artist</code> document, whe can see a list of <code>liker_ids</code> that correspond to the artist&rsquo;s likers.</p>
+
+<p>Now if we look at our algorithm in terms of requests, what we actually are doing is:</p>
+
+<ul>
+<li>Open the current_user document. When recommending for me, this represent my profile.</li>
+<li>In my document I find an array of artists. No additional query here.</li>
+<li>Perform one db query to obtain all the <code>likers</code> of the artists I like with <code>friends = User.any_in(id: my_artists.distinct(:liker_ids)).only(:id, :liked_artist_ids)</code>. Note that we find the <code>Artist</code> documents by their ids, then simply concatenate their respective <code>liker_ids</code> arrays. No need to index any relation table, or foreign key. Furthermore, from this single request we already know what our &lsquo;friends&rsquo; like, since every friend document contains a <code>liked_artist_ids</code> array.</li>
+<li>At this stage we already nailed down the interesting users among our database, and we can browse through their liked artists without performing any additional query.</li>
+</ul>
+
+
+<p>This pretty much implies that the complexity of our algorithm doesn&rsquo;t depend on the number of users, but rather to the interconnection level of our graph.</p>
+
+<p>In other words: if we add billions of user that doesn&rsquo;t share any liked artist with you, then your recommendation query would be totally unaffected. But if everybody loved the same artists, then we&rsquo;d have some trouble.</p>
+
+<p>Another very good example of such an algorithm is the &ldquo;friend recommender&rdquo;. Having billions of users where evey user have an average of 50 friends is a piece of cake to deal with. But of course, if a single user would become the friend of <strong>everyone</strong>, then you&rsquo;d simply have to browse the whole database to find your friend&rsquo;s friends. In a social graph this is very unlikely to happen: I&rsquo;m way too hipster to befriend such a guy.</p>
+
+<p>I&rsquo;ve slightly modified the demo script to <code>big_reco.rb</code>. We can see what happens with 100k users, that randomly like 10 artists each, among a 1k artists database:</p>
+
+<p>100,000 users, 1,000 artists and 10 likes per user:
+<code>ruby
+u = User.all.sample(1).first
+puts User.count #=&gt; 100000
+puts Benchmark.measure{ u.recommendations} #=&gt; 1.060000   0.000000   1.060000 (  1.127213)
+</code></p>
+
+<p>As you can see this is still pretty fast and run in about a second on an average laptop. Actually, preparing the database was hat took a while, so I didn&rsquo;t make many more examples. Feel free to send me some if you are brave enough to try :)</p>
+
+<p>Note that even with millions of users, a proper cache structure along with background jobs can garanty recommendations that take less than <em>300ms</em>. Let me know if you&rsquo;re intested, I might consider writing a tuto about how to design such a background engine !</p>
+
+<h3>Conclusion</h3>
+
+<p>Thanks for reading, I hope this was of some interest for you, feel free to ask any question or to share your feedback !</p>
+
+<p><a href="/assets/reco_engine.tgz">Download the sources</a></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Big data with hadoop stream and ruby (and not even one line of java)]]></title>
+    <link href="http://aurelien-herve.com/blog/2015/01/14/big-data-with-hadoop-stream-and-ruby/"/>
+    <updated>2015-01-14T13:42:09+01:00</updated>
+    <id>http://aurelien-herve.com/blog/2015/01/14/big-data-with-hadoop-stream-and-ruby</id>
+    <content type="html"><![CDATA[<h3>Objective:</h3>
+
+<p>In this tuto I&rsquo;ll show you how to process billions of data with minimal efforts and code with elastic mapreduce and hadoop-stream. Our list to Santa is :</p>
+
+<ul>
+<li>I want to process an unknown amount of data in a scalable, custom way</li>
+<li>The same code can be run locally and remotely, so I can debug or process any amount of data without changing anything</li>
+<li>I should be able to use any language I like, and this does not especially have to be java. In this example I&rsquo;ll be using ruby because it&rsquo;s awesome. Simply translate this tuto to python, perl, php or anything you want, it&rsquo;ll still work.</li>
+</ul>
+
+
+<!-- more -->
+
+
+<h2>1. Let&rsquo;s play a game</h2>
+
+<p>Let&rsquo;s suppose we are running a huge gaming platform. As the brand new data scientist, we&rsquo;re asked to perform some simple stats on our users.</p>
+
+<p>For the sake of the example, let&rsquo;s compute any user&rsquo;s average ranking, per type of played games.</p>
+
+<p>From the platform logs we have to kind of files:</p>
+
+<ul>
+<li>a <code>GameLog</code> file describes the type of game, the date, and a game id</li>
+<li>a <code>PlayerLog</code> file describes how a player scored a game. It contains the game id, the player id, and the player score.</li>
+</ul>
+
+
+<p>This looks like</p>
+
+<p><code>ruby PlayerLog
+PlayerId    Score    GameId    
+1           1       1         
+1           2       2         
+2           0       1         
+2           5       2         
+</code></p>
+
+<p><code>ruby GameLog
+GameId    Type
+1         chess
+2         go   
+</code></p>
+
+<p>Our files are tab separated (tsv) format, and stored on an amazon <a href="https://aws.amazon.com/s3/">aws s3</a> bucket.</p>
+
+<h4>Expected output:</h4>
+
+<p><code>ruby Output
+Player_id    GameType    AverageRank
+1            chess       1
+1            go          2
+2            chess       2
+2            go          1
+</code></p>
+
+<h2>2. Do this with style !</h2>
+
+<p>We are going to solve this algorithm with mapreduce. Map/reduce is a programming paradigm that will allow you to <em>horizontally scale</em> the program execution. This means the more parallel servers you get, the more efficient you will be. Obviously within a reasonable range, mounting 300 servers to process 10 lines of data doesn&rsquo;t look like a good idea..</p>
+
+<p>In addition to be scalable, I really find a map/reduce reduces the amount of code, increases claricity, and should thus be used even for moderate amount of datas.</p>
+
+<p><strong>Bonus:</strong> We&rsquo;ll be able to run our code both locally for quick tests, and remotely for heavy processing \o/</p>
+
+<h4>The approach</h4>
+
+<p>Before entering in the details, here is what we are going to do:</p>
+
+<ul>
+<li>map the raw data and extract useful information (map)</li>
+<li>group the data by <code>game_id</code> key (sort)</li>
+<li>compute each player rank for each game (reduce1)</li>
+<li>group the data by (player,game_type) couples (sort)</li>
+<li>for each (player/game_type) couple, compute the average rank (reduce2)</li>
+</ul>
+
+
+<p>Our steps hence consists in a <em>map &ndash;> reduce &ndash;> reduce</em> procedure. If we think of a second mapper which is identity, then we have two <code>map-&gt;reduce</code> steps</p>
+
+<p>As we plan to use hadoop-stream, the only things we need are three script files that will represent our mapper, and reducers. Each file will consist of a simple script that will &ldquo;eat&rdquo; data via <code>STDIN</code>, and output something to <code>STDOUT</code>.
+Again, I&rsquo;m using ruby as an example here. If you&rsquo;re more comfortable with any other language, then please use it, as long as it knows <code>STDIN</code> and <code>STDOUT</code> !</p>
+
+<p>Thanks to Hadoop, we won&rsquo;t have to take care of the sort steps, the data redundency management, the possible server crashes, and plenty of boring stuff. How nice is that ?</p>
+
+<h3>2.1. first mapper</h3>
+
+<p>The first mapper&rsquo;s role will be to &ldquo;eat&rdquo; raw data with absolutely no context, nor any knowledge of what&rsquo;s happening elsewhere (<em>i.e.</em> on other potential workers). It is very important to note that there is absolutely no relation between two consecutive lines that a mapper receives.
+For instance, some mapper could receive the first line of the first log, then the 10th line of another log file, then the 2nd line of the first log&hellip;etc</p>
+
+<p>```ruby map1.rb</p>
+
+<h1>!/usr/bin/env ruby</h1>
+
+<p>class Mapper</p>
+
+<p>  # initialize a mapper with raw data.
+  def initialize(line)</p>
+
+<pre><code># chomp will remove endline characters
+# split will split the line for every tab character \t
+# strip will remove whitespaces at begining and end of every words
+@data = line.chomp.split("\t").map(&amp;:strip)
+</code></pre>
+
+<p>  end</p>
+
+<p>  # this &ldquo;switch&rdquo; will determine if we are reading a GameLog or a UserLog line
+  # in our example, it is sufficient to look whether @data has 2, or 3 values
+  # for more complex cases, I&rsquo;m sure you&rsquo;ll always find something ;)
+  def log_type</p>
+
+<pre><code>@log_type ||= if @data.size == 2
+            :game_log
+          else
+            :player_log
+          end
+</code></pre>
+
+<p>  end</p>
+
+<p>  def game_log_output</p>
+
+<pre><code>game_id   = @data[0]
+game_type = @data[1]
+
+[game_id, log_type, game_type].join("\t")
+</code></pre>
+
+<p>  end</p>
+
+<p>  def player_log_output</p>
+
+<pre><code>player_id = @data[0]
+score     = @data[1]
+game_id   = @data[2]
+
+[game_id, log_type, player_id, score].join("\t")
+</code></pre>
+
+<p>  end</p>
+
+<p>  # the mapper result
+  def output</p>
+
+<pre><code>return game_log_output if log_type == :game_log
+return player_log_output
+</code></pre>
+
+<p>  end</p>
+
+<p>  # the Map! class method
+  def self.map!(line)</p>
+
+<pre><code>puts Mapper.new(line).output
+</code></pre>
+
+<p>  end</p>
+
+<p>end</p>
+
+<p>ARGF.each do |line|
+  Mapper.map!(line) unless line.chomp.empty? # map every non-empty line with our mapper
+end
+```</p>
+
+<p>As you can see, this mapper will always output the <code>game_id</code> as first key. Then, regarding of the log type, it will either output informations about the player, or the game.</p>
+
+<p>You can run locally your mapper by simply running <code>cat datain/* | map1.rb</code>, whitch outputs something like</p>
+
+<p><code>ruby
+1 player_log  1 1
+2 player_log  1 2
+1 player_log  2 0
+2 player_log  2 5
+1 game_log  chess
+2 game_log  go
+</code></p>
+
+<h3>2.2 first sort</h3>
+
+<p>I feel like this step should be explained even if it does not require any work. What will be happening here is that hadoop will take care of our first outputed results.
+By default, it will split using the <code>tab</code> character, and will assign a single reducer instance for each key.
+Furthermore, it will garanty that a reducer will see &lsquo;sorted&rsquo; results</p>
+
+<p>This step is very important to understand. It means two things for the reducer:</p>
+
+<ul>
+<li>For each primary key (<code>game_id</code> in our example), all the corresponding lines will be sent to the same reducer instance. This allows to process data without any communication between the reducers.</li>
+<li>The data is sorted. This implies that if a reducer sees a <code>game_id=1</code> key, then all following lines will also be <code>game_id=1</code> until there is no <code>game_id=1</code> key left. Ever. As soon a the reducer receives a different primary key, then we can assume <strong>all</strong> the <code>game_id=1</code> lines have been processed.</li>
+</ul>
+
+
+<h4>When running with bash:</h4>
+
+<p>As I said, I should be able to run my code both locally and remotely. Fortunately, we can perform a sort with bash with the <code>sort</code> command.</p>
+
+<p>This trick consists of performing a pure sort on the data. When running locally, we don&rsquo;t have to distribute the data between different instances (which hadoop does) so a sorted data will garanty the two features that we require for our reducer.</p>
+
+<p>running this in bash would yield:</p>
+
+<p><code>cat datain/* | map1.rb | sort</code> =>
+<code>ruby
+1 game_log  chess
+1 player_log  1 1
+1 player_log  2 0
+2 game_log  go
+2 player_log  1 2
+2 player_log  2 5
+</code></p>
+
+<p>As you can see, the data is now grouped by <code>game_id</code> key. How delightful.</p>
+
+<h4>When running with hadoop:</h4>
+
+<p>Simply perform some cool dance moves while hadoop take care of everything.</p>
+
+<p><img class="center" src="/images/success_dance.gif"></p>
+
+<h3>2.3 first reduce</h3>
+
+<p>The first reducer will accumulate the player scores, in order to determine the players ranks in each played game:
+```ruby reduce1.rb</p>
+
+<h1>!/usr/bin/env ruby</h1>
+
+<p>class Reducer</p>
+
+<p>  attr_accessor :key, :game_type</p>
+
+<p>  def initialize(key)</p>
+
+<pre><code>@key = key
+@player_scores = Hash.new
+</code></pre>
+
+<p>  end</p>
+
+<p>  def accumulate(splitted_line)</p>
+
+<pre><code>if splitted_line[1] == 'game_log' #if the line is of type game_log
+  @game_type = splitted_line[2]
+else # if the line is of type player_log
+  player_id = splitted_line[2]
+  player_score = splitted_line[3]
+
+  @player_scores[player_id] = player_score
+end
+</code></pre>
+
+<p>  end</p>
+
+<p>  def output!</p>
+
+<pre><code>ordered_player_ids.each_with_index do |id,i|
+  puts [
+    "#{@game_type}|#{id}", # joined to form a new key for the next reducer
+    i+1 #the rank (+1 so the first has a rank of 1)
+  ].join("\t")
+end
+</code></pre>
+
+<p>  end</p>
+
+<p>  def ordered_player_ids</p>
+
+<pre><code># this will output a list of player_ids, sorted by their scores
+# Note that I'm way too lazy to deal with draws here :D
+@player_scores.sort_by{|player,score| score}.reverse.map(&amp;:first)
+</code></pre>
+
+<p>  end</p>
+
+<p>end</p>
+
+<p>ARGF.each do |line|
+  # split the data
+  splitted_line = line.chomp.split(&ldquo;\t&rdquo;).map(&amp;:strip)</p>
+
+<p>  # get the primary key
+  new_key = splitted_line.first</p>
+
+<p>  #initialize if required
+  @red ||= Reducer.new(new_key)</p>
+
+<p>  # if the key is the same, then continue accumulating
+  if new_key == @red.key</p>
+
+<pre><code>@red.accumulate(splitted_line)
+
+# if the key is new, then first output current results, then instanciate a new reducer
+# Note that once the result is outputed to STDOUT, we can drop the reducer instance
+</code></pre>
+
+<p>  else</p>
+
+<pre><code>@red.output! unless @red.key.nil?
+@red = Reducer.new(new_key)
+@red.accumulate(splitted_line)
+</code></pre>
+
+<p>  end
+end
+@red.output!
+```</p>
+
+<p>Now our process yield <code>cat datain.dat | ./map1.rb | sort | ./reduce1.rb</code> =></p>
+
+<p><code>ruby
+chess|1 1
+chess|2 2
+go|1    2
+go|2    1
+</code></p>
+
+<p>This could be read as</p>
+
+<ul>
+<li><em>player 1 scored one chess game with rank 1</em></li>
+<li><em>player 2 scored one chess game with rank 2</em></li>
+<li><em>player 1 scored one go game with rank 2</em></li>
+<li><em>player 2 scored one go game with rank 1</em></li>
+</ul>
+
+
+<p>Please note something very important here: <strong>The reducer stores almost nothing in memory!</strong>
+As you can see in the script, as soon as a game is finished processing, then we can simply output the result and drop our reducer. Nothing has to stay in memory, so you don&rsquo;t need any ram on your workers, even to process billions of games !</p>
+
+<h3>2.4. coffe break !</h3>
+
+<p><img class="center" src="/images/coffe-break.gif"></p>
+
+<p>If you&rsquo;re still reading this then I&rsquo;m sure you deserve it.</p>
+
+<h3>2.5. Second mapper</h3>
+
+<p>Nothing has to be done here, the data is already formated for the next reduce step.</p>
+
+<p>Conceptualy, we can view this step as a map step, where the mapper would be identity.
+As a reminder that something is still hapening here, I&rsquo;ll pipe the unix <code>cat</code> command to our workflow. Of course it has no practical purpose.</p>
+
+<p>When running our code with hadoop-stream, we&rsquo;ll declare a <code>map</code> step, with identity mapper ( or we&rsquo;ll simply declare <code>cat</code> to be our mapper script, which is pretty much the same)</p>
+
+<h3>2.6 Last step: averaging the scores</h3>
+
+<p>For the sake of the argument, let&rsquo;s say I wasn&rsquo;t this lazy, and generated much more data, which led to a <code>reduce1</code> output that reads</p>
+
+<p><code>ruby
+chess|1 1
+chess|1 1
+chess|2 1
+chess|2 2
+go|1    2
+chess|1 1
+go|1    1
+go|1    1
+chess|2 2
+go|1    1
+go|1    2
+hide-and-seek|1 8
+go|2    1
+go|2    1
+hide-and-seek|3 2
+hide-and-seek|1 8
+chess|1 1
+hide-and-seek|1 8
+chess|1 2
+hide-and-seek|3 5
+hide-and-seek|3 1
+</code></p>
+
+<p>We now have three players, three different games. I also shuffled the results, to emphasis that the reduce step does not necessary provide sorted results.
+Actually it does when running our <em>bash workflow</em>, since we&rsquo;re using <code>sort</code> and a single proc. Generally speaking it is not.</p>
+
+<p>Once we run the identity mapper, followed by the sort step, it will again be sorted so we can write our final reducer as follows:</p>
+
+<p>```ruby reduce2.rb</p>
+
+<h1>!/usr/bin/env ruby</h1>
+
+<p>class Reducer</p>
+
+<p>  attr_accessor :key, :game_type, :user_id</p>
+
+<p>  def initialize(key,value)</p>
+
+<pre><code>@key = key
+
+#split the primary key to get user_id and game type:
+@game_type,@user_id = key.split("|")
+
+#to perform an on-the-fly average, we only need two variables:
+@count = 1
+@average = value.to_f
+</code></pre>
+
+<p>  end</p>
+
+<p>  #on the fly averaging. We do NOT store the entire array !
+  def accumulate(value)</p>
+
+<pre><code>@average  = ( @count.to_f/(@count + 1) * @average ) + (value.to_f / (@count + 1) )
+@count += 1
+</code></pre>
+
+<p>  end</p>
+
+<p>  # follow the expectations
+  def output!</p>
+
+<pre><code>puts [
+  @user_id,
+  @game_type,
+  @average.round(1),
+].join("\t")
+</code></pre>
+
+<p>  end</p>
+
+<p>end</p>
+
+<p>ARGF.each do |line|
+  next if line.chomp.empty?</p>
+
+<p>  # split the data
+  new_key,value = line.chomp.split(&ldquo;\t&rdquo;).map(&amp;:strip)</p>
+
+<p>  #initialize if required
+  @red ||= Reducer.new(new_key,value)</p>
+
+<p>  # if the key is the same, then continue accumulating
+  if new_key == @red.key</p>
+
+<pre><code>@red.accumulate(value)
+</code></pre>
+
+<p>  # if the key is new, then first output current results, then instanciate a new reducer
+  else</p>
+
+<pre><code>@red.output! 
+@red = Reducer.new(new_key,value)
+</code></pre>
+
+<p>  end
+end
+@red.output!
+```</p>
+
+<p>If we run our bash process we get <code>cat datain/* | ./map1.rb | sort | ./reduce1.rb | cat | sort | ./reduce2.rb</code> (assuming we have our new dataset):</p>
+
+<p><code>ruby
+1 chess 1.2
+2 chess 1.7
+1 go  1.4
+2 go  1.0
+1 hide-and-seek 8.0
+3 hide-and-seek 2.7
+</code></p>
+
+<p>And that&rsquo;s it ! we know knows that the player 1 performed an average rank of 1.2 at chess, and an average rank of 8.0 at hide and seek !</p>
+
+<h2>3. Going heavy</h2>
+
+<p>Like I told you, our script are hadoop-ready. Provided you have an aws-amazon account, running our code can be done very easily:</p>
+
+<ul>
+<li>install amazon elastic-mapreduce client and configure it (basically give it your credentials)</li>
+<li>run the first map-reduce stage:</li>
+</ul>
+
+
+<p><code>bash elastic_mapreduce_launcher_stage1.sh
+elastic-mapreduce \
+  --create \
+  --name look_mom_big_data \
+  --stream \
+  --input s3n://yourbucket/data_in \
+  --mapper s3n://yourbucket/src/map1.rb \
+  --reducer s3n://yourbucket/src/reduce1.rb \
+  --output s3n://yourbucket/first_results \
+  --log-uri s3://yourbucket/emr-logs/ \
+  --region eu-west-1 \
+  --instance-type m1.small \
+  --num-instances 300
+</code></p>
+
+<p>then</p>
+
+<p><code>bash elastic_mapreduce_launcher2.sh
+elastic-mapreduce \
+  --create \
+  --name look_mom_big_data \
+  --stream \
+  --input s3n://yourbucket/first_results \
+  --mapper cat \
+  --reducer s3n://yourbucket/src/reduce2.rb \
+  --output s3n://yourbucket/output \
+  --log-uri s3://yourbucket/emr-logs/ \
+  --region eu-west-1 \
+  --instance-type m1.small \
+  --num-instances 300
+</code></p>
+
+<p>Note that I&rsquo;m using two different launchers here. You can also tell your launcher to perform multiple steps by passing them as json. See the elastic-mapreduce doc for that.</p>
+
+<p><em>Wait&hellip; Is it this simple?</em></p>
+
+<p>Yes. This simple.</p>
+
+<h2>Conclusion</h2>
+
+<p>Thanks for reading, you&rsquo;re awesome</p>
+
+<p><img class="center" src="/images/not_impressed.gif"></p>
+
+<p>If this helped you in any way, feel free to drop a comment, correct something, ask a question, or simply let me know this was interesting, thanks !</p>
+
+<p>Please note that this approach can be &mdash; and have been &mdash; used for heavy industrial purposes. You can litterally process billions of rows in no time, with a few lines of code. This is, in my opinion, a tremendous way to prototype and scale your data analysis !</p>
+]]></content>
+  </entry>
+  
+</feed>

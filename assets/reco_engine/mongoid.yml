@@ -1,0 +1,6 @@
+development: 
+  sessions:
+    default:
+      database: reco_engine_demo
+      hosts:
+        - localhost:27017
