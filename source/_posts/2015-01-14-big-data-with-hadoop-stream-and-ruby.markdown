@@ -9,6 +9,7 @@ categories:
  - big data
  - elastic mapreduce
  - mapreduce
+ - tutorial
 ---
 
 ### Objective: 
