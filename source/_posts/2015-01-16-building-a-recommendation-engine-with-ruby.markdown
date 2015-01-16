@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "building a recommendation engine with ruby"
+title: "Writing a recommendation engine with ruby and mongoid"
 date: 2015-01-16 10:12:33 +0100
 comments: true
 categories: 
