@@ -125,10 +125,8 @@ In `comment.rb` we add:
 ```ruby app/models/comment.rb
 class Comment
   ...
-  after_save :touch_post
-  def touch_post
-    post.save # this will update the `updated_at` key of our post
-  end
+  # this will update the `updated_at` key of our post
+  belongs_to :post, touch: true
 end
 ```
 
@@ -168,10 +166,8 @@ in our `Post definition`:
 ```ruby app/models/post.rb
 class Post
   ...
-  after_save :touch_user
-  def touch_user
-    user.save # this will update the `updated_at` key of our user
-  end
+  # adding touch: true will update the `updated_at` key of our user when the post is updated
+  belongs_to :author, class_name: "User", inverse_of: :posts, touch: true
 end
 ```
 
