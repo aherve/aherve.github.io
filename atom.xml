@@ -4,7 +4,7 @@
   <title><![CDATA[Aurélien Hervé]]></title>
   <link href="http://aurelien-herve.com/atom.xml" rel="self"/>
   <link href="http://aurelien-herve.com/"/>
-  <updated>2015-01-21T17:17:38+01:00</updated>
+  <updated>2015-01-21T19:22:49+01:00</updated>
   <id>http://aurelien-herve.com/</id>
   <author>
     <name><![CDATA[A. Hervé]]></name>
@@ -197,14 +197,10 @@ In <code>comment.rb</code> we add:</p>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
 <span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
 </pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Comment</span>
 </span><span class='line'>  <span class="o">.</span><span class="n">.</span><span class="o">.</span>
-</span><span class='line'>  <span class="n">after_save</span> <span class="ss">:touch_post</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">touch_post</span>
-</span><span class='line'>    <span class="n">post</span><span class="o">.</span><span class="n">save</span> <span class="c1"># this will update the `updated_at` key of our post</span>
-</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>  <span class="c1"># this will update the `updated_at` key of our post</span>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:post</span><span class="p">,</span> <span class="ss">touch</span><span class="p">:</span> <span class="kp">true</span>
 </span><span class='line'><span class="k">end</span>
 </span></code></pre></td></tr></table></div></figure>
 
@@ -264,14 +260,10 @@ In <code>comment.rb</code> we add:</p>
 <span class='line-number'>3</span>
 <span class='line-number'>4</span>
 <span class='line-number'>5</span>
-<span class='line-number'>6</span>
-<span class='line-number'>7</span>
 </pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Post</span>
 </span><span class='line'>  <span class="o">.</span><span class="n">.</span><span class="o">.</span>
-</span><span class='line'>  <span class="n">after_save</span> <span class="ss">:touch_user</span>
-</span><span class='line'>  <span class="k">def</span> <span class="nf">touch_user</span>
-</span><span class='line'>    <span class="n">user</span><span class="o">.</span><span class="n">save</span> <span class="c1"># this will update the `updated_at` key of our user</span>
-</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>  <span class="c1"># adding touch: true will update the `updated_at` key of our user when the post is updated</span>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:author</span><span class="p">,</span> <span class="n">class_name</span><span class="p">:</span> <span class="s2">&quot;User&quot;</span><span class="p">,</span> <span class="n">inverse_of</span><span class="p">:</span> <span class="ss">:posts</span><span class="p">,</span> <span class="ss">touch</span><span class="p">:</span> <span class="kp">true</span>
 </span><span class='line'><span class="k">end</span>
 </span></code></pre></td></tr></table></div></figure>
 

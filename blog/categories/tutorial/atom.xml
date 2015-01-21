@@ -4,7 +4,7 @@
   <title><![CDATA[Category: tutorial | Aurélien Hervé]]></title>
   <link href="http://aurelien-herve.com/blog/categories/tutorial/atom.xml" rel="self"/>
   <link href="http://aurelien-herve.com/"/>
-  <updated>2015-01-21T17:17:38+01:00</updated>
+  <updated>2015-01-21T19:22:49+01:00</updated>
   <id>http://aurelien-herve.com/</id>
   <author>
     <name><![CDATA[A. Hervé]]></name>
@@ -140,18 +140,13 @@ end
 
 <p>Let&rsquo;s use the cache to cache methods results at low level:
 In <code>comment.rb</code> we add:
-```ruby app/models/comment.rb
+<code>ruby app/models/comment.rb
 class Comment
-  &hellip;
-  after_save :touch_post
-  def touch_post</p>
-
-<pre><code>post.save # this will update the `updated_at` key of our post
-</code></pre>
-
-<p>  end
+  ...
+  # this will update the `updated_at` key of our post
+  belongs_to :post, touch: true
 end
-```</p>
+</code></p>
 
 <p>This first addition will change the <code>post</code> timestamp each time a comment is upvoted or downvoted so that from the <code>post</code> model, we&rsquo;ll know something has changed.</p>
 
@@ -191,18 +186,13 @@ end
 <p>Now let&rsquo;s go a step further with the same idea in mind:</p>
 
 <p>in our <code>Post definition</code>:
-```ruby app/models/post.rb
+<code>ruby app/models/post.rb
 class Post
-  &hellip;
-  after_save :touch_user
-  def touch_user</p>
-
-<pre><code>user.save # this will update the `updated_at` key of our user
-</code></pre>
-
-<p>  end
+  ...
+  # adding touch: true will update the `updated_at` key of our user when the post is updated
+  belongs_to :author, class_name: "User", inverse_of: :posts, touch: true
 end
-```</p>
+</code></p>
 
 <p>in <code>User</code>:
 ```ruby app/models/user.rb
