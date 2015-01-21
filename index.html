@@ -113,6 +113,64 @@
       
   <header class="page-header">
     
+      <h1 class="entry-title"><a href="/blog/2015/01/21/awesome-low-level-caching-for-your-rails-app/">Awesome Low Level Caching for Your Rails App</a></h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2015-01-21T13:13:20+01:00" pubdate data-updated="true">Jan 21<span>st</span>, 2015</time>
+        
+         | <a href="/blog/2015/01/21/awesome-low-level-caching-for-your-rails-app/#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+  <div class="entry-content"><h3>Performant cache structure to save duplicate calculations</h3>
+
+<p>Rubyist love the DRY moto (Don&rsquo;t Repeat Yourself). Here&rsquo;s how to implement a cache structure so that we Don&rsquo;t Calculate Twice.</p>
+
+<p>What we want:</p>
+
+<ul>
+<li>Don&rsquo;t compute anything twice, until there is a good reason to think the result might change</li>
+<li>Any change in the database should be immediatly visible to users (no caching for a few minutes, hoping things won&rsquo;t change too fast)</li>
+<li>Don&rsquo;t compute anything that has not be requested by a user (<em>i.e.</em> don&rsquo;t pre-calculate everything )</li>
+</ul>
+
+
+<p>Sounds awesome, how do we proceed ?</p>
+
+</div>
+  
+  
+    <footer>
+      <strong>
+        <a class="excerpt" rel="full-article" href="/blog/2015/01/21/awesome-low-level-caching-for-your-rails-app/">&#8230;Read on &rarr;</a>
+      </strong>
+    </footer>
+  
+
+
+    </article>
+  
+  
+    <article class='well'>
+      
+  <header class="page-header">
+    
       <h1 class="entry-title"><a href="/blog/2015/01/16/building-a-recommendation-engine-with-ruby/">Writing a Recommendation Engine With Ruby and Mongoid</a></h1>
     
     
@@ -527,6 +585,10 @@
     <li class="nav-header">Recent Posts</li>
     
       <li class="post">
+        <a href="/blog/2015/01/21/awesome-low-level-caching-for-your-rails-app/">Awesome low level caching for your Rails app</a>
+      </li>
+    
+      <li class="post">
         <a href="/blog/2015/01/16/building-a-recommendation-engine-with-ruby/">Writing a recommendation engine with ruby and mongoid</a>
       </li>
     
@@ -540,10 +602,6 @@
     
       <li class="post">
         <a href="/blog/2014/05/23/how-to-migrate-your-django-users-to-a-new-rails-application/">how to migrate your django users to a new rails application</a>
-      </li>
-    
-      <li class="post">
-        <a href="/blog/2014/02/27/some-cool-functional-programming-with-ruby/">Having fun with functional programming in ruby</a>
       </li>
     
   </ul>

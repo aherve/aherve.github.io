@@ -18,27 +18,33 @@
         <loc>
             http://aurelien-herve.com/blog/2014/02/27/some-cool-functional-programming-with-ruby/
         </loc>
-        <lastmod>2015-01-14T18:53:28+01:00</lastmod>
+        <lastmod>2015-01-19T14:54:19+01:00</lastmod>
     </url>
     <url>
         <loc>
             http://aurelien-herve.com/blog/2014/05/23/how-to-migrate-your-django-users-to-a-new-rails-application/
         </loc>
-        <lastmod>2015-01-14T18:53:28+01:00</lastmod>
+        <lastmod>2015-01-19T14:54:19+01:00</lastmod>
     </url>
     <url>
         <loc>http://aurelien-herve.com/blog/2014/10/14/advanced-api-option-parser-for-grape/</loc>
-        <lastmod>2015-01-14T18:53:28+01:00</lastmod>
+        <lastmod>2015-01-19T14:54:19+01:00</lastmod>
     </url>
     <url>
         <loc>http://aurelien-herve.com/blog/2015/01/14/big-data-with-hadoop-stream-and-ruby/</loc>
-        <lastmod>2015-01-16T10:13:23+01:00</lastmod>
+        <lastmod>2015-01-19T14:54:19+01:00</lastmod>
     </url>
     <url>
         <loc>
             http://aurelien-herve.com/blog/2015/01/16/building-a-recommendation-engine-with-ruby/
         </loc>
-        <lastmod>2015-01-16T15:35:46+01:00</lastmod>
+        <lastmod>2015-01-19T14:54:19+01:00</lastmod>
+    </url>
+    <url>
+        <loc>
+            http://aurelien-herve.com/blog/2015/01/21/awesome-low-level-caching-for-your-rails-app/
+        </loc>
+        <lastmod>2015-01-21T17:17:32+01:00</lastmod>
     </url>
     <url>
         <loc>http://aurelien-herve.com/publications/efmc9/</loc>
@@ -70,10 +76,10 @@
     </url>
     <url>
         <loc>http://aurelien-herve.com/blog/archives/</loc>
-        <lastmod>2015-01-16T15:35:46+01:00</lastmod>
+        <lastmod>2015-01-21T17:17:32+01:00</lastmod>
     </url>
     <url>
         <loc>http://aurelien-herve.com/</loc>
-        <lastmod>2015-01-16T15:35:46+01:00</lastmod>
+        <lastmod>2015-01-21T17:17:32+01:00</lastmod>
     </url>
 </urlset>

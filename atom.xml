@@ -4,7 +4,7 @@
   <title><![CDATA[Aurélien Hervé]]></title>
   <link href="http://aurelien-herve.com/atom.xml" rel="self"/>
   <link href="http://aurelien-herve.com/"/>
-  <updated>2015-01-16T15:36:01+01:00</updated>
+  <updated>2015-01-21T17:17:38+01:00</updated>
   <id>http://aurelien-herve.com/</id>
   <author>
     <name><![CDATA[A. Hervé]]></name>
@@ -12,6 +12,348 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[Awesome low level caching for your Rails app]]></title>
+    <link href="http://aurelien-herve.com/blog/2015/01/21/awesome-low-level-caching-for-your-rails-app/"/>
+    <updated>2015-01-21T13:13:20+01:00</updated>
+    <id>http://aurelien-herve.com/blog/2015/01/21/awesome-low-level-caching-for-your-rails-app</id>
+    <content type="html"><![CDATA[<h3>Performant cache structure to save duplicate calculations</h3>
+
+<p>Rubyist love the DRY moto (Don&rsquo;t Repeat Yourself). Here&rsquo;s how to implement a cache structure so that we Don&rsquo;t Calculate Twice.</p>
+
+<p>What we want:</p>
+
+<ul>
+<li>Don&rsquo;t compute anything twice, until there is a good reason to think the result might change</li>
+<li>Any change in the database should be immediatly visible to users (no caching for a few minutes, hoping things won&rsquo;t change too fast)</li>
+<li>Don&rsquo;t compute anything that has not be requested by a user (<em>i.e.</em> don&rsquo;t pre-calculate everything )</li>
+</ul>
+
+
+<p>Sounds awesome, how do we proceed ?</p>
+
+<!-- more -->
+
+
+<h2>The best blog app ever</h2>
+
+<p>Say we have a blogging platform where your users can write posts. For each post can be commented by the viewers, and each comment itself can be upvoted or downvoted.</p>
+
+<p><img class="center" src="http://aurelien-herve.com/images/cache_diag.png"></p>
+
+<p>We could define an <em>interesting comment</em>  is a comment where the number of upvoters is higher than the number of downvoters, so it has a <code>comment.score &gt; 0</code>.</p>
+
+<p>Now what about we extract the number of interesting comments a user generated through his/her posts ?</p>
+
+<h3>Methods definitions without cache</h3>
+
+<p>First, let&rsquo;s define a structure that will define <code>User</code>, <code>Post</code> and <code>Comment</code>:</p>
+
+<figure class='code'><figcaption><span>app/models/comment.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Comment</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Document</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Timestamps</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># the comment have a content</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:content</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">String</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># stores the score for queries</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:score</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">Integer</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># the comment belongs to a post</span>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:post</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># the comment have upvoters</span>
+</span><span class='line'>  <span class="n">has_and_belongs_to_many</span> <span class="ss">:upvoters</span>  <span class="p">,</span> <span class="n">class_name</span><span class="p">:</span> <span class="s2">&quot;User&quot;</span><span class="p">,</span> <span class="n">inverse_of</span><span class="p">:</span> <span class="s2">&quot;liked_comments&quot;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># the comment have downvoters</span>
+</span><span class='line'>  <span class="n">has_and_belongs_to_many</span> <span class="ss">:downvoters</span><span class="p">,</span> <span class="n">class_name</span><span class="p">:</span> <span class="s2">&quot;User&quot;</span><span class="p">,</span> <span class="n">inverse_of</span><span class="p">:</span> <span class="s2">&quot;disliked_comments&quot;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># score is computed, then stored at each save:</span>
+</span><span class='line'>  <span class="n">before_save</span> <span class="ss">:set_score</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">set_score</span>
+</span><span class='line'>    <span class="nb">self</span><span class="o">.</span><span class="n">write_attributes</span><span class="p">(</span><span class="ss">score</span><span class="p">:</span> <span class="n">upvoter_ids</span><span class="o">.</span><span class="n">size</span> <span class="o">-</span> <span class="n">downvoter_ids</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>app/models/post.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Post</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Document</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Timestamps</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># the post belongs to its author</span>
+</span><span class='line'>  <span class="n">belongs_to</span> <span class="ss">:author</span><span class="p">,</span> <span class="n">class_name</span><span class="p">:</span> <span class="s2">&quot;User&quot;</span><span class="p">,</span> <span class="n">inverse_of</span><span class="p">:</span> <span class="ss">:posts</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># the post content</span>
+</span><span class='line'>  <span class="n">field</span> <span class="ss">:content</span><span class="p">,</span> <span class="ss">type</span><span class="p">:</span> <span class="nb">String</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># the post has many comments</span>
+</span><span class='line'>  <span class="n">has_many</span> <span class="ss">:comments</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># How many interesting comments does it have?</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">interesting_comments_count</span>
+</span><span class='line'>    <span class="n">comments</span><span class="o">.</span><span class="n">gt</span><span class="p">(</span><span class="ss">score</span><span class="p">:</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span> <span class="c1">#gt = greater than</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><figcaption><span>app/models/user.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">User</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Document</span>
+</span><span class='line'>  <span class="kp">include</span> <span class="ss">Mongoid</span><span class="p">:</span><span class="ss">:Timestamps</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="n">has_many</span> <span class="ss">:posts</span><span class="p">,</span> <span class="n">class_name</span><span class="p">:</span> <span class="s2">&quot;Post&quot;</span><span class="p">,</span> <span class="n">inverse_of</span><span class="p">:</span> <span class="ss">:author</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1"># the post score is the sum of all posts scores</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">interesting_comments_count</span>
+</span><span class='line'>    <span class="n">posts</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="o">&amp;</span><span class="ss">:interesting_comments_count</span><span class="p">)</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="ss">:+</span><span class="p">)</span> <span class="c1">#map/reduce rules</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>The <em>fastest</em> blog app ever</h2>
+
+<p>Now that we have our structure working, let&rsquo;s add some cache to make this the fastest (and smartest) engine ever.</p>
+
+<p>Rails has a nice tool for managing cache. You can either configure <code>Rails.cache</code> to use a <a href="http://redis.io/">redis</a> database, or keep the default parameters.</p>
+
+<p>In particular, we can use <code>Rails.cache.fetch( key, expires_in: seconds) do ...</code> that will do the following:</p>
+
+<ul>
+<li>If a value is found at the given key, then return it</li>
+<li>If no value is found (<em>i.e.</em> such key doesn&rsquo;t exist), then execute the block, returns its result, and store the result as the new value for key <code>key</code>.</li>
+</ul>
+
+
+<p>Let&rsquo;s use the cache to cache methods results at low level:
+In <code>comment.rb</code> we add:</p>
+
+<figure class='code'><figcaption><span>app/models/comment.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Comment</span>
+</span><span class='line'>  <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'>  <span class="n">after_save</span> <span class="ss">:touch_post</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">touch_post</span>
+</span><span class='line'>    <span class="n">post</span><span class="o">.</span><span class="n">save</span> <span class="c1"># this will update the `updated_at` key of our post</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This first addition will change the <code>post</code> timestamp each time a comment is upvoted or downvoted so that from the <code>post</code> model, we&rsquo;ll know something has changed.</p>
+
+<figure class='code'><figcaption><span>app/models/post.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'>  <span class="k">def</span> <span class="nf">interesting_comments_count</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1"># when was the last update ?</span>
+</span><span class='line'>    <span class="n">date_key</span> <span class="o">=</span> <span class="nb">self</span><span class="o">.</span><span class="n">updated_at</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1"># create unique key for each post, method, and timestamp</span>
+</span><span class='line'>    <span class="n">cache_key</span> <span class="o">=</span> <span class="s2">&quot;postInterestingCommentCount|</span><span class="si">#{</span><span class="nb">id</span><span class="si">}</span><span class="s2">|{date_key}&quot;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c1"># Fetch the value, or calculate it then store it into cache:</span>
+</span><span class='line'>    <span class="no">Rails</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="n">cache_key</span><span class="p">,</span> <span class="n">expires_in</span><span class="p">:</span> <span class="mi">2</span><span class="o">.</span><span class="n">days</span><span class="p">)</span> <span class="k">do</span>
+</span><span class='line'>      <span class="n">comments</span><span class="o">.</span><span class="n">gt</span><span class="p">(</span><span class="ss">score</span><span class="p">:</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">count</span> <span class="c1">#gt = greater than</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><strong>Explanations</strong>:</p>
+
+<ul>
+<li>First run: a key is created, the result is calculated and stored at the key address.</li>
+<li>Another <code>interesting_comments_count</code> call happens. If no comment score has been updated, then the key will be the same, and the result will be presented without running any query. Fine</li>
+<li>Someone upvote a comment. The post timestamp updates thanks to our <code>comment</code> callback. Thus, the <code>date_key</code> returns a different value. The computed <code>cache_key</code> changes, and we are now looking at a key address where no results exists yet. Back to step one.</li>
+</ul>
+
+
+<p> As a result of this, we can see that when a cache key becomes outdated, then it is not destroyed nor looked for: it is simply ignored and replaced by a new key that will be used until further change.</p>
+
+<p>To avoid overloading your base, an expiration date is set, so that after a while, any key will simply be destroyed after a while.</p>
+
+<p>Simple, isn&rsquo;t it ?</p>
+
+<p>Now let&rsquo;s go a step further with the same idea in mind:</p>
+
+<p>in our <code>Post definition</code>:</p>
+
+<figure class='code'><figcaption><span>app/models/post.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">Post</span>
+</span><span class='line'>  <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'>  <span class="n">after_save</span> <span class="ss">:touch_user</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">touch_user</span>
+</span><span class='line'>    <span class="n">user</span><span class="o">.</span><span class="n">save</span> <span class="c1"># this will update the `updated_at` key of our user</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>in <code>User</code>:</p>
+
+<figure class='code'><figcaption><span>app/models/user.rb</span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="k">class</span> <span class="nc">User</span>
+</span><span class='line'>  <span class="o">.</span><span class="n">.</span><span class="o">.</span>
+</span><span class='line'>  <span class="k">def</span> <span class="nf">interesting_comments_count</span>
+</span><span class='line'>    <span class="n">cache_timestamp</span> <span class="o">=</span> <span class="nb">self</span><span class="o">.</span><span class="n">updated_at</span>
+</span><span class='line'>    <span class="n">cache_key</span> <span class="o">=</span> <span class="s2">&quot;userInterestingCommentCount|</span><span class="si">#{</span><span class="nb">id</span><span class="si">}</span><span class="s2">|</span><span class="si">#{</span><span class="n">cache_timestamp</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="no">Rails</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="n">cache_key</span><span class="p">,</span> <span class="n">expires_in</span><span class="p">:</span> <span class="mi">2</span><span class="o">.</span><span class="n">days</span><span class="p">)</span> <span class="k">do</span>
+</span><span class='line'>      <span class="n">posts</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="o">&amp;</span><span class="ss">:interesting_comments_count</span><span class="p">)</span><span class="o">.</span><span class="n">reduce</span><span class="p">(</span><span class="ss">:+</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">end</span>
+</span><span class='line'>  <span class="k">end</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>This additional step uses exactly the same strategy as before.</p>
+
+<p>Now take a look at what would happen in real conditions.</p>
+
+<ul>
+<li>A user <code>u</code> has 10 posts.</li>
+<li><strong><code>u.interesting_comments_count</code> is called:</strong>
+
+<ul>
+<li>A cache key is generated for each <code>Post</code> that belongs to <code>u</code></li>
+<li>An additional cache key is generated for our user <code>u</code>.</li>
+</ul>
+</li>
+<li><strong><code>u.interesting_comments_count</code> is called again:</strong>
+
+<ul>
+<li>The higher level cache key finds a result, and return. No db query is run.</li>
+</ul>
+</li>
+<li>A comment is being upvoted
+
+<ul>
+<li>it touches the corresponding comment</li>
+<li>the corresponding comment itself triggers a callback => the corresponding user is touched</li>
+</ul>
+</li>
+<li><strong><code>u.interesting_comments_count</code> is called:</strong>
+
+<ul>
+<li>the user cache key is outdated and the method is run again.</li>
+<li>For 9 of the 10 posts, the <code>post.interesting_comments_count</code> has an active cache key and the result is instantly returned</li>
+<li>For the post that changed, the result is calculated, and returned while a new cache key is being generated.</li>
+</ul>
+</li>
+<li>back to step 2</li>
+</ul>
+
+
+<p>If you&rsquo;re still with me here, then you&rsquo;ve probably seen how this cache structure allows to calculate <strong>exactly</strong> what is necessary, and <strong>only</strong> when required to do so.</p>
+
+<p>How awesome is that ?</p>
+
+<p><img class="center" src="http://aurelien-herve.com/images/awesome.gif"></p>
+
+<h3>Conclusion</h3>
+
+<p>For most of the apis I write, I&rsquo;m using this trick quite extensively. It allows any user/developper to call any method without having to fear to trigger unnecessary long calculations.</p>
+
+<p>I hope this was of some help, feel free to give your feedback or to ask any questions !</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Writing a recommendation engine with ruby and mongoid]]></title>
