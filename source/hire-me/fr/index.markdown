@@ -11,15 +11,14 @@ footer: true
 
 ## Besoin d'aide ?
 
-Gérer un projet technique peut être simple lorsque c'est bien conçu, et je vous propose donc de vous aider à mettre en place les techniques de pointes dans le domaine du __développement__ & __DevOps__. 
+Gérer un projet technique web peut être simple lorsque celui-ci est bien conçu, et je vous propose de vous aider à mettre en place les techniques de pointes dans le domaine du __développement & DevOps__ dès les premières heures de votre projet. 
 
- - Le but : vous accompagner dans le développement d'une architecture stable, robuste, évolutive, scalable et documentée qui ne phagocyte pas votre énergie dans la gestion de problèmes techniques.
+Après plusieurs expériences en tant que CTO dans des startups web, je suis convaincu qu'une architecture moderne doit être __déployable en un clic, facile à entretenir et hautement évolutive__. Les premiers choix techniques sont cruciaux, et de bonnes fondations au démarrage d' un projet permettent de gagner un temps et une énergie considérables par la suite.
 
- - Les moyens : la mise en place de lean startup, de méthodologie agile, d'intégration continue, de déploiement continu, de Test Driven Developement, de design d'api REST, la génération de documentations automatisées...etc.
+ - __Le but__ : vous accompagner dans le développement d'une architecture stable, robuste, évolutive, scalable et documentée qui ne phagocyte pas votre énergie dans la gestion de problèmes techniques. 
+ - __Les moyens__ : la mise en place de lean startup, de méthodologie agile, d'intégration continue, de déploiement continu, de Test Driven Developement, de design d'api web REST, la génération de documentations automatisées...etc.
 
-J'ai constaté d'expérience qu'une architecture doit être déployable en un clic et facilement, ce que je peux vous aider à mettre en place.
-
-Aujourd'hui je parle et développe couramment avec :
+J'utilise principalement les technologies suivantes, avec lesquelles je continue de développer régulièrement : 
 
  - ruby, rails, grape-api, 
  - mongodb, redis, mysql/postgresql, amazon-dynamodb, neo4j, redshift
@@ -27,8 +26,7 @@ Aujourd'hui je parle et développe couramment avec :
  - travis, codeship, github
  - hadoop, hive, redshift
 
-N'hésitez donc pas à me contacter si vous cherchez à poser des bases techniques solides pour démarrer un projet, à designer une application complexe, à installer un environnement de qualité industrielle et scalable, à faire développer une api REST sécurisée et documentée, ou tout simplement à apprendre quelques clés pour mieux gérer votre projet !
-
+N'hésitez pas à me contacter si vous cherchez à poser des bases techniques solides pour démarrer un projet, à designer une application complexe, à installer un environnement de qualité industrielle et scalable, à faire développer une api REST sécurisée et documentée, ou tout simplement à apprendre quelques clés pour mieux gérer votre projet !
 
 Au plaisir de vous rencontrer ! <a href="#" onclick="alert('feel free to drop me a mail ! \n mail @ aurelien-herve.com');">contact</a>
 

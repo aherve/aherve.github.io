@@ -7,7 +7,7 @@ sharing: false
 footer: true
 ---
 
-[English version here](/hire-me/en)
+[Version française ici](/hire-me/fr)
 
 ## Need help ?
 
