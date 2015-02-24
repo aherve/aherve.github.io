@@ -1,6 +1,6 @@
 ---
 layout: page
-title: "hire me!"
+title: "Need help ?"
 date: 2015-02-24 12:50
 comments: false
 sharing: false
@@ -8,8 +8,6 @@ footer: true
 ---
 
 [Version française ici](/hire-me/fr)
-
-## Need help ?
 
 As a former startup CTO, I can help you to design a scalable, reliable, evolutive and documented architecture to help you starting your project.
 

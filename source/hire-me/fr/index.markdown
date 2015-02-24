@@ -1,6 +1,6 @@
 ---
 layout: page
-title: "hire me!"
+title: "Besoin d'aide ?"
 date: 2015-02-24 12:50
 comments: false
 sharing: false
@@ -8,8 +8,6 @@ footer: true
 ---
 
 [English version here](/hire-me/en)
-
-## Besoin d'aide ?
 
 Gérer un projet technique web peut être simple lorsque celui-ci est bien conçu, et je vous propose de vous aider à mettre en place les techniques de pointes dans le domaine du __développement & DevOps__ dès les premières heures de votre projet. 
 
