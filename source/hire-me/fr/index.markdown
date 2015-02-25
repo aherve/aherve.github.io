@@ -35,3 +35,7 @@ Pour plus d'infos sur moi sur:
  - [blog](/)
  - [github](github: http://github.com/aherve)
  - [linkedin](linkedin: https://www.linkedin.com/reg/join-pprofile?_ed=0_0dpSzn-5ElkAYW7bjGuTU5HofbVm2Y-mf9zhkbvzZaNfMsQyQYuXGlnOigKb8bAM_Ddp99BmX-4A8iXPK7xrDP&trk=pprof-0-ts-view_full-0)
+
+### Happy clients are happy !
+
+{% render_partial hire-me/en/happy_clients_are_happy.markdown %}
