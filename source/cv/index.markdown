@@ -1,11 +1,13 @@
 ---
 layout: page
-title: "curriculum vitae"
+title: "Aurélien Hervé: curriculum vitae"
 date: 2015-02-25 10:17
 comments: false
 sharing: false
 footer: true
 ---
+
+contact: mail@aurelien-herve.com
 
 ## Summary
 
