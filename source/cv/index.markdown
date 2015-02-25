@@ -9,7 +9,7 @@ footer: true
 
 ## Summary
 
-### CTO Expert DevOps, Big Data & Architect
+### PhD CTO Expert DevOps, Big Data & Architect
 
 As a CTO, I design and build scalable, reliable, evolutive and documented architectures from scratch. I have experience in both innovative web projects and big data infrastructures to help you running your business without worrying about your technical stack [(see more here)](/hire-me/en)!
 
