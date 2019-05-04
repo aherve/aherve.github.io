@@ -5,29 +5,43 @@
       <h1>Aurélien Hervé</h1>
     </div>
   </a>
-  <nav mat-tab-nav-bar>
-    <a
-      mat-tab-link
-      routerLink="/research"
-      routerLinkActive #rla="routerLinkActive"
-      [active]="rla.isActive"
-      >research</a>
-    <a
-      mat-tab-link
-      (click)="showEmail()"
-      >contact</a>
+  <nav mat-tab-nav-bar fxHide.lt-md>
+    <a mat-tab-link routerLink="/research" routerLinkActive #rla="routerLinkActive" [active]="rla.isActive">research</a>
+    <a mat-tab-link (click)="showEmail()">contact</a>
   </nav>
   <div fxFlex="grow"></div>
-  <a href="https://medium.com/@aherve" target="blank">
+
+  <a href="https://medium.com/@aherve" target="blank" fxHide.lt-sm>
     <img class="icon" src="/assets/medium.png">
   </a>
-  <a href="https://twitter.com/aurel_herve" target="_blank">
+  <a href="https://twitter.com/aurel_herve" target="_blank" fxHide.lt-sm>
     <img class="icon" src="/assets/twitter.png">
   </a>
-  <a href="https://github.com/aherve" target="_blank">
+  <a href="https://github.com/aherve" target="_blank" fxHide.lt-sm>
     <img class="icon" src="/assets/github.png">
   </a>
-  <a href="https://www.linkedin.com/in/aurélien-hervé-6355255a" target="_blank">
+  <a href="https://www.linkedin.com/in/aurélien-hervé-6355255a" target="_blank" fxHide.lt-sm>
     <img class="icon" src="/assets/linkedin.png">
   </a>
+
+  <button mat-icon-button [matMenuTriggerFor]="menu" fxHide.gt-sm>
+    <mat-icon>menu</mat-icon>
+  </button>
+  <mat-menu #menu='matMenu'>
+    <a mat-menu-item routerLink="/research">research</a>
+    <button mat-menu-item (click)="showEmail()">contact</button>
+    <a mat-menu-item href="https://medium.com/@aherve" target="blank" fxHide.gt-xs>
+      <img class="icon" src="/assets/medium.png">
+    </a>
+    <a mat-menu-item href="https://twitter.com/aurel_herve" target="_blank" fxHide.gt-xs>
+      <img class="icon" src="/assets/twitter.png">
+    </a>
+    <a mat-menu-item href="https://github.com/aherve" target="_blank" fxHide.gt-xs>
+      <img class="icon" src="/assets/github.png">
+    </a>
+    <a mat-menu-item href="https://www.linkedin.com/in/aurélien-hervé-6355255a" target="_blank" fxHide.gt-xs>
+      <img class="icon" src="/assets/linkedin.png">
+    </a>
+  </mat-menu>
+
 </mat-toolbar>

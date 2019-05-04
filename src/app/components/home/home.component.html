@@ -4,13 +4,8 @@
   <a class="hunteed" href="https://hunteed.com" target="_blank">@Hunteed</a>
 </h2>
 
-<mat-list>
-  <h4 mat-subheader>PhD work in fundamental fluid mechanics</h4>
-  <mat-list-item>
-    <a routerLink="/research">See publications & conferences</a>
-  </mat-list-item>
-
-  <h4 mat-subheader> Random projects & github contributions</h4>
+<mat-list fxLayout="column" fxLayoutGap.lt-sm="25px">
+  <h3 mat-subheader> Random projects & github contributions</h3>
   <ah-external-link url="https://chrome.google.com/webstore/detail/gdpnope/kaobbaeanleebomkmkleekoeefldjcpi?hl=es">
     <strong>GDPNope</strong>: block tracking request popups and deny all tracking
   </ah-external-link>
@@ -35,7 +30,16 @@
     <strong>PBKDF2-password-hasher</strong>: a ruby implementation of the pbkdf2 algorithm. Usually built to migrate from a django users db to a ruby-rails app.
   </ah-external-link>
 
-  <h4 mat-subheader>Social & blogging</h4>
+  <mat-divider></mat-divider>
+
+  <h3 mat-subheader>PhD work in fundamental fluid mechanics</h3>
+  <mat-list-item class="item">
+    <a routerLink="/research">See publications & conferences</a>
+  </mat-list-item>
+
+  <mat-divider></mat-divider>
+
+  <h3 mat-subheader>Social & blogging</h3>
   <ah-external-link url="https://medium.com/@aherve">medium blog</ah-external-link>
   <ah-external-link url="https://twitter.com/aurel_herve">twitter</ah-external-link>
   <ah-external-link url="https://github.com/aherve">github</ah-external-link>
