@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
-    "serve": "ng serve",
+    "start": "ng serve --aot=false",
+    "serve": "ng serve --aot=false",
     "build": "ng build",
     "lint": "ng lint"
   },
