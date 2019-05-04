@@ -6,7 +6,8 @@
     "start": "ng serve --aot=false",
     "serve": "ng serve --aot=false",
     "build": "ng build",
-    "lint": "ng lint"
+    "lint": "ng lint",
+    "deploy": "rm dist/* -rf && ng build --prod --aot && gh-pages -d ./dist/aherve -b master"
   },
   "private": true,
   "dependencies": {
@@ -33,6 +34,7 @@
     "@angular/compiler-cli": "~7.2.0",
     "@angular/language-service": "~7.2.0",
     "@types/node": "~8.9.4",
+    "gh-pages": "^2.0.1",
     "ts-node": "~7.0.0",
     "tslint": "~5.11.0",
     "typescript": "~3.2.2"
