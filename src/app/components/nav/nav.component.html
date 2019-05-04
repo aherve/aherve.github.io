@@ -1,0 +1,22 @@
+<mat-toolbar fxLayout="row" fxLayoutAlign="start center" fxLayoutGap="25px">
+  <a routerLink="/">
+    <div fxLayout="row" fxLayoutAlign="start center" fxLayoutGap="15px">
+      <img class="avatar" src="/assets/portrait.jpg">
+      <h1>Aurélien Hervé</h1>
+    </div>
+  </a>
+  <nav mat-tab-nav-bar>
+    <a
+      mat-tab-link
+      routerLink="/research"
+      routerLinkActive #rla="routerLinkActive"
+      [active]="rla.isActive"
+      >research</a>
+    <a
+      mat-tab-link
+      routerLink="/b"
+      routerLinkActive #rlb="routerLinkActive"
+      [active]="rlb.isActive"
+      >go to b</a>
+  </nav>
+</mat-toolbar>
