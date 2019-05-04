@@ -14,9 +14,20 @@
       >research</a>
     <a
       mat-tab-link
-      routerLink="/b"
-      routerLinkActive #rlb="routerLinkActive"
-      [active]="rlb.isActive"
-      >go to b</a>
+      (click)="showEmail()"
+      >contact</a>
   </nav>
+  <div fxFlex="grow"></div>
+  <a href="https://medium.com/@aherve" target="blank">
+    <img class="icon" src="/assets/medium.png">
+  </a>
+  <a href="https://twitter.com/aurel_herve" target="_blank">
+    <img class="icon" src="/assets/twitter.png">
+  </a>
+  <a href="https://github.com/aherve" target="_blank">
+    <img class="icon" src="/assets/github.png">
+  </a>
+  <a href="https://www.linkedin.com/in/aurélien-hervé-6355255a" target="_blank">
+    <img class="icon" src="/assets/linkedin.png">
+  </a>
 </mat-toolbar>

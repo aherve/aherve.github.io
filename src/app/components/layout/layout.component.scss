@@ -1,3 +1,9 @@
 .container {
-  padding-left: 15px;
+  min-height: 100vh;
+  padding-bottom: 5px;
+
+  .main {
+    padding-left: 15px;
+  }
+
 }

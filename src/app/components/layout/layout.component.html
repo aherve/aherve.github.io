@@ -1,3 +1,7 @@
-<div class="container">
-  <ng-content></ng-content>
+<div class="container" fxLayout="column">
+  <ah-nav></ah-nav>
+  <div class="main" fxFlex="grow">
+    <router-outlet></router-outlet>
+  </div>
+  <ah-footer fxFlexAlign="center"></ah-footer>
 </div>

@@ -1,4 +1,6 @@
 import { Component } from '@angular/core';
+import { MatDialog } from '@angular/material';
+import { ContactDialogComponent } from 'src/app/components/contact-dialog/contact-dialog.component';
 
 @Component({
   selector: 'ah-nav',
@@ -7,6 +9,12 @@ import { Component } from '@angular/core';
 })
 export class NavComponent {
 
-  constructor() { }
+  constructor(
+    private dialog: MatDialog,
+  ) { }
+
+  public showEmail () {
+    this.dialog.open(ContactDialogComponent)
+  }
 
 }

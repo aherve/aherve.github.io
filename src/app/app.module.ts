@@ -12,6 +12,9 @@ import { FlexLayoutModule } from '@angular/flex-layout';
 import { ResearchComponent } from './components/research/research.component';
 import { BlogComponent } from './components/blog/blog.component';
 import { LayoutComponent } from './components/layout/layout.component';
+import { ExternalLinkComponent } from './components/external-link/external-link.component';
+import { FooterComponent } from './components/footer/footer.component';
+import { ContactDialogComponent } from './components/contact-dialog/contact-dialog.component';
 
 @NgModule({
   declarations: [
@@ -20,7 +23,10 @@ import { LayoutComponent } from './components/layout/layout.component';
     NavComponent,
     ResearchComponent,
     BlogComponent,
-    LayoutComponent
+    LayoutComponent,
+    ExternalLinkComponent,
+    FooterComponent,
+    ContactDialogComponent
   ],
   imports: [
     FlexLayoutModule,
@@ -31,6 +37,10 @@ import { LayoutComponent } from './components/layout/layout.component';
     MaterialModule,
   ],
   providers: [],
-  bootstrap: [AppComponent]
+  bootstrap: [AppComponent],
+  entryComponents: [
+    ContactDialogComponent,
+  ]
+  
 })
 export class AppModule { }
