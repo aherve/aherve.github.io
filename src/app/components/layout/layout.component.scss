@@ -1,6 +1,5 @@
 .container {
-  min-height: 100vh;
-  padding-bottom: 5px;
+  min-height: calc(100vh - 15px);
 
   .main {
     padding-left: 15px;
