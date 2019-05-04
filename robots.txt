@@ -1,4 +1,0 @@
-User-agent: *
-Disallow: 
-
-Sitemap: http://aurelien-herve.com/sitemap.xml 
