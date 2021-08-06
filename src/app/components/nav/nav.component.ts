@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { MatDialog } from '@angular/material';
+import { MatDialog } from '@angular/material/dialog';
 import { ContactDialogComponent } from 'src/app/components/contact-dialog/contact-dialog.component';
 
 @Component({

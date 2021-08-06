@@ -52,8 +52,7 @@
               "node_modules/normalize.css/normalize.css",
               "src/styles.scss"
             ],
-            "scripts": [],
-            "es5BrowserSupport": true
+            "scripts": []
           },
           "configurations": {
             "production": {

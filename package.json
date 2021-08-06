@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve --aot=false",
-    "serve": "ng serve --aot=false",
+    "start": "ng serve",
+    "serve": "ng serve",
     "build": "ng build",
     "lint": "ng lint",
     "deploy": "rm dist/* -rf && ng build --prod --aot && gh-pages -d ./dist/aherve -b master"
